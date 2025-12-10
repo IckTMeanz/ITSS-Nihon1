@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新規登録 - コーヒーファインダー</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <a th:href="@{/}">☕ コーヒーファインダー</a>
+            </div>
+            <ul class="nav-menu">
+                <li><a th:href="@{/}">ホーム</a></li>
+                <li><a th:href="@{/map}">地図</a></li>
+                <li><a th:href="@{/settings}">設定</a></li>
+                <li><a th:href="@{/login}">ログイン</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="auth-container">
+        <div class="auth-box">
+            <h1>新規登録</h1>
+            <p class="auth-subtitle">新しいアカウントを作成</p>
+
+            <div th:if="${error}" class="error-message" style="color: red; margin-bottom: 15px; text-align: center;">
+                <p th:text="${error}"></p>
+            </div>
+
+            <form th:action="@{/register}" th:object="${user}" method="post">
+                
+                <div class="form-group">
+                    <label for="name">お名前</label>
+                    <input type="text" id="name" th:field="*{name}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">メールアドレス</label>
+                    <input type="email" id="email" th:field="*{email}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">パスワード</label>
+                    <input type="password" id="password" th:field="*{password}" required minlength="6">
+                    <span class="helper-text">6文字以上で入力してください</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">パスワード確認</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="agreeTerms" required>
+                        <a href="#">利用規約</a>と<a href="#">プライバシーポリシー</a>に同意します
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-primary">登録</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>すでにアカウントをお持ちですか？ <a th:href="@{/login}">ログイン</a></p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 コーヒーファインダー. All rights reserved.</p>
+        </div>
+    </footer>
+
+<script>
+        document.querySelector('form').addEventListener('submit', function(e) {
+            var pass = document.getElementById('password').value;
+            var confirm = document.getElementById('confirmPassword').value;
+            
+            // Xóa thông báo lỗi cũ (nếu có)
+            var errorSpan = document.getElementById('confirmPasswordError');
+            if(errorSpan) errorSpan.textContent = "";
+
+            if (pass !== confirm) {
+                e.preventDefault(); // Chặn gửi form
+                // Hiển thị lỗi (bạn có thể dùng alert hoặc gán text vào thẻ span lỗi)
+                if(errorSpan) {
+                    errorSpan.textContent = "Mật khẩu xác nhận không khớp!";
+                    errorSpan.style.color = "red";
+                } else {
+                    alert('Mật khẩu xác nhận không khớp!');
+                }
+            }
+        });
+    </script>
+    </body>
+</html>
