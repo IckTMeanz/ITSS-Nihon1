@@ -1,4 +1,4 @@
-package dto;
+package com.itss.cafe_finder.dto;
 
 import lombok.Data;
 import java.math.BigDecimal;
@@ -13,3 +13,4 @@ public class CafeDTO {
     private String image;
     private String description;
 }
+

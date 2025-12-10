@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ユーザー管理 - カフェファインダー管理画面</title>
+    <link rel="stylesheet" th:href="@{/admin/css/admin.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <h2>☕ 管理画面</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a th:href="@{/admin/index}" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>ダッシュボード</span>
+                </a>
+                <a th:href="@{/admin/cafes}" class="nav-item">
+                    <i class="fas fa-coffee"></i>
+                    <span>カフェ管理</span>
+                </a>
+                <a th:href="@{/admin/users}" class="nav-item active">
+                    <i class="fas fa-users"></i>
+                    <span>ユーザー管理</span>
+                </a>
+                <a th:href="@{/admin/reviews}" class="nav-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>コンテンツ監視</span>
+                </a>
+                <div class="sidebar-divider"></div>
+                <a th:href="@{/}" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>クライアント画面</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <header class="admin-header">
+                <h1>ユーザー管理</h1>
+                <div class="admin-user">
+                    <i class="fas fa-user-circle"></i>
+                    <span>管理者 ▾</span>
+                    <ul class="admin-user-dropdown">
+                        <li><a href="settings.html"><i class="fas fa-user-cog"></i> アカウント設定</a></li>
+                        <li><a href="#" onclick="handleAdminLogout(); return false;"><i class="fas fa-sign-out-alt"></i> ログアウト</a></li>
+                    </ul>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                <!-- Stats Cards -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <i class="fas fa-users"></i>
+                        <div>
+                            <h3>総ユーザー数</h3>
+                            <p class="stat-value" th:text="${totalUsers}">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-user-check"></i>
+                        <div>
+                            <h3>アクティブユーザー</h3>
+                            <p class="stat-value" th:text="${activeUsers}">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-user-lock"></i>
+                        <div>
+                            <h3>ロック中</h3>
+                            <p class="stat-value" th:text="${bannedUsers}">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-user-shield"></i>
+                        <div>
+                            <h3>管理者</h3>
+                            <p class="stat-value" th:text="${adminUsers}">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Bar -->
+                <div class="action-bar">
+                    <div class="search-filter">
+                        <input type="text" id="userSearch" placeholder="ユーザー名、メールで検索..." onkeyup="filterUsers()">
+                        <select id="userRoleFilter" onchange="filterUsers()">
+                            <option value="">すべての権限</option>
+                            <option value="admin">管理者</option>
+                            <option value="customer">一般ユーザー</option>
+                        </select>
+                        <select id="userStatusFilter" onchange="filterUsers()">
+                            <option value="">すべてのステータス</option>
+                            <option value="active">アクティブ</option>
+                            <option value="banned">ロック中</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- User Table -->
+                <div class="data-table-container">
+                    <table class="data-table" id="userTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>ユーザー名</th>
+                                <th>メールアドレス</th>
+                                <th>権限</th>
+                                <th>登録日</th>
+                                <th>ステータス</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            <!-- Data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- User Detail Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>ユーザー詳細</h2>
+                <span class="modal-close" onclick="closeUserModal()">&times;</span>
+            </div>
+            <div class="user-detail" id="userDetailContent">
+                <!-- User details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeUserModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/admin/js/admin.js}"></script>
+    <script th:src="@{/admin/js/user.js}"></script>
+</body>
+</html>
