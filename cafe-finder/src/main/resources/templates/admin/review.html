@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>コンテンツ監視 - カフェファインダー管理画面</title>
+    <link rel="stylesheet" th:href="@{/admin/css/admin.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <h2>☕ 管理画面</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a th:href="@{/admin/index}" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>ダッシュボード</span>
+                </a>
+                <a th:href="@{/admin/cafes}" class="nav-item">
+                    <i class="fas fa-coffee"></i>
+                    <span>カフェ管理</span>
+                </a>
+                <a th:href="@{/admin/users}" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>ユーザー管理</span>
+                </a>
+                <a th:href="@{/admin/reviews}" class="nav-item active">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>コンテンツ監視</span>
+                </a>
+                <div class="sidebar-divider"></div>
+                <a th:href="@{/}" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>クライアント画面</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <header class="admin-header">
+                <h1>コンテンツ監視</h1>
+                <div class="admin-user">
+                    <i class="fas fa-user-circle"></i>
+                    <span>管理者 ▾</span>
+                    <ul class="admin-user-dropdown">
+                        <li><a href="settings.html"><i class="fas fa-user-cog"></i> アカウント設定</a></li>
+                        <li><a href="#" onclick="handleAdminLogout(); return false;"><i class="fas fa-sign-out-alt"></i> ログアウト</a></li>
+                    </ul>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                <!-- Stats Cards -->
+                <div class="stats-row">
+                    <div class="stat-card alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>
+                            <h3>要確認レビュー</h3>
+                            <p class="stat-value" th:text="${pendingReviews}">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card success">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <h3>承認済み</h3>
+                            <p class="stat-value" th:text="${publishedReviews}">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Bar -->
+                <div class="action-bar">
+                    <button class="btn-primary" onclick="approveAllPendingReviews()">
+                        <i class="fas fa-check-double"></i> すべてのレビューを承認
+                    </button>
+                    <div class="search-filter">
+                        <input type="text" id="reviewSearch" placeholder="レビュー内容、ユーザー名で検索..." onkeyup="filterReviews()">
+                        <select id="reviewStatusFilter" onchange="filterReviews()">
+                            <option value="">すべてのステータス</option>
+                            <option value="pending">要確認</option>
+                            <option value="published">承認済み</option>
+                        </select>
+                        <select id="reviewRatingFilter" onchange="filterReviews()">
+                            <option value="">すべての評価</option>
+                            <option value="5">★★★★★ 5つ星</option>
+                            <option value="4">★★★★ 4つ星</option>
+                            <option value="3">★★★ 3つ星</option>
+                            <option value="2">★★ 2つ星</option>
+                            <option value="1">★ 1つ星</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Review List -->
+                <div class="content-monitoring-list" id="reviewList">
+                    <!-- Reviews will be loaded here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Review Detail Modal -->
+    <div id="reviewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>レビュー詳細</h2>
+                <span class="modal-close" onclick="closeReviewModal()">&times;</span>
+            </div>
+            <div id="reviewDetailContent">
+                <!-- Review details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeReviewModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/admin/js/admin.js}"></script>
+    <script th:src="@{/admin/js/review.js}"></script>
+</body>
+</html>

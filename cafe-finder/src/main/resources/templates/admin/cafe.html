@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カフェ管理 - カフェファインダー管理画面</title>
+    <link rel="stylesheet" th:href="@{/admin/css/admin.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <h2>☕ 管理画面</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a th:href="@{/admin/index}" class="nav-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>ダッシュボード</span>
+                </a>
+                <a th:href="@{/admin/cafes}" class="nav-item active">
+                    <i class="fas fa-coffee"></i>
+                    <span>カフェ管理</span>
+                </a>
+                <a th:href="@{/admin/users}" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>ユーザー管理</span>
+                </a>
+                <a th:href="@{/admin/reviews}" class="nav-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>コンテンツ監視</span>
+                </a>
+                <div class="sidebar-divider"></div>
+                <a th:href="@{/}" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>クライアント画面</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <header class="admin-header">
+                <h1>カフェ管理</h1>
+                <div class="admin-user">
+                    <i class="fas fa-user-circle"></i>
+                    <span>管理者 ▾</span>
+                    <ul class="admin-user-dropdown">
+                        <li><a href="settings.html"><i class="fas fa-user-cog"></i> アカウント設定</a></li>
+                        <li><a href="#" onclick="handleAdminLogout(); return false;"><i class="fas fa-sign-out-alt"></i> ログアウト</a></li>
+                    </ul>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                <!-- Action Bar -->
+                <div class="action-bar">
+                    <button class="btn-primary" onclick="openAddCafeModal()">
+                        <i class="fas fa-plus"></i> 新規カフェ追加
+                    </button>
+                    <div class="search-filter">
+                        <input type="text" id="cafeSearch" placeholder="カフェ名、住所で検索..." onkeyup="filterCafes()">
+                        <select id="cafeStatusFilter" onchange="filterCafes()">
+                            <option value="">すべてのステータス</option>
+                            <option value="opening">営業中</option>
+                            <option value="closed">閉店</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Cafe Table -->
+                <div class="data-table-container">
+                    <table class="data-table" id="cafeTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>カフェ名</th>
+                                <th>住所</th>
+                                <th>評価</th>
+                                <th>レビュー数</th>
+                                <th>ステータス</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cafeTableBody">
+                            <!-- Data will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Cafe Modal -->
+    <div id="cafeModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="modalTitle">カフェ追加</h2>
+                <span class="modal-close" onclick="closeCafeModal()">&times;</span>
+            </div>
+            <form id="cafeForm" onsubmit="saveCafe(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="cafeName">カフェ名 <span class="required">*</span></label>
+                        <input type="text" id="cafeName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="cafeRating">評価</label>
+                        <input type="number" id="cafeRating" min="0" max="5" step="0.1" value="0">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="cafeAddress">住所 <span class="required">*</span></label>
+                    <input type="text" id="cafeAddress" required>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="cafeDistance">距離 (km)</label>
+                        <input type="number" id="cafeDistance" step="0.1" value="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="cafeImage">画像URL</label>
+                        <input type="url" id="cafeImage">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="cafeDescription">説明 <span class="required">*</span></label>
+                    <textarea id="cafeDescription" rows="3" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="cafeHours">営業時間</label>
+                    <input type="text" id="cafeHours" placeholder="例: 月-金 8:00-20:00, 土日 9:00-21:00">
+                </div>
+
+                <div class="form-group">
+                    <label>メニュー</label>
+                    <div id="menuItems">
+                        <div class="menu-item-row">
+                            <input type="text" placeholder="メニュー名" class="menu-name">
+                            <input type="text" placeholder="価格 (例: ¥450)" class="menu-price">
+                            <input type="text" placeholder="説明" class="menu-description">
+                            <input type="text" placeholder="画像URL" class="menu-image">
+                            <button type="button" class="btn-icon" onclick="removeMenuItem(this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-secondary btn-sm" onclick="addMenuItem()">
+                        <i class="fas fa-plus"></i> メニュー項目を追加
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="cafeFeatured">
+                        注目のカフェとして表示
+                    </label>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeCafeModal()">キャンセル</button>
+                    <button type="submit" class="btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script th:src="@{/admin/js/admin.js}"></script>
+    <script th:src="@{/admin/js/cafe.js}"></script>
+</body>
+</html>

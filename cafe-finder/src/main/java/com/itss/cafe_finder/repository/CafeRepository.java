@@ -50,4 +50,7 @@ public interface CafeRepository extends JpaRepository<Cafe, Long> {
             BigDecimal maxDistance,
             Pageable pageable
     );
+    
+    Page<Cafe> findByNameContainingIgnoreCaseOrAddressContainingIgnoreCase(
+            String name, String address, Pageable pageable);
 }

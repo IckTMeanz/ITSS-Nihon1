@@ -13,3 +13,4 @@ public class CafeDTO {
     private String image;
     private String description;
 }
+

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ダッシュボード - カフェファインダー管理画面</title>
+    <link rel="stylesheet" th:href="@{/admin/css/admin.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <h2>☕ 管理画面</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a th:href="@{/admin/index}" class="nav-item active">
+                    <i class="fas fa-chart-line"></i>
+                    <span>ダッシュボード</span>
+                </a>
+                <a th:href="@{/admin/cafes}" class="nav-item">
+                    <i class="fas fa-coffee"></i>
+                    <span>カフェ管理</span>
+                </a>
+                <a th:href="@{/admin/users}" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>ユーザー管理</span>
+                </a>
+                <a th:href="@{/admin/reviews}" class="nav-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>コンテンツ監視</span>
+                </a>
+                <div class="sidebar-divider"></div>
+                <a th:href="@{/}" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>クライアント画面</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <header class="admin-header">
+                <h1>ダッシュボード</h1>
+                <div class="admin-user">
+                    <i class="fas fa-user-circle"></i>
+                    <span>管理者 ▾</span>
+                    <ul class="admin-user-dropdown">
+                        <li><a href="settings.html"><i class="fas fa-user-cog"></i> アカウント設定</a></li>
+                        <li><a href="#" onclick="handleAdminLogout(); return false;"><i class="fas fa-sign-out-alt"></i> ログアウト</a></li>
+                    </ul>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background-color: #4CAF50;">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div class="kpi-details">
+                            <h3>新規ユーザー</h3>
+                            <p class="kpi-value" id="newUsers" th:text="${stats.newUsersThisMonth}">0</p>
+                            <span class="kpi-change positive">
+                                <i class="fas fa-arrow-up"></i> 今月
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background-color: #2196F3;">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <div class="kpi-details">
+                            <h3>総ユーザー数</h3>
+                            <p class="kpi-value" id="totalUsers" th:text="${stats.totalUsers}">0</p>
+                            <span class="kpi-change positive">
+                                <i class="fas fa-users"></i> 総計
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background-color: #FF9800;">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="kpi-details">
+                            <h3>レビュー数</h3>
+                            <p class="kpi-value" id="reviewCount" th:text="${stats.totalReviews}">0</p>
+                            <span class="kpi-change positive">
+                                <i class="fas fa-arrow-up"></i> 総計
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background-color: #9C27B0;">
+                            <i class="fas fa-coffee"></i>
+                        </div>
+                        <div class="kpi-details">
+                            <h3>登録カフェ数</h3>
+                            <p class="kpi-value" id="cafeCount" th:text="${stats.totalCafes}">0</p>
+                            <span class="kpi-change neutral">
+                                <i class="fas fa-minus"></i> 変動なし
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>人気カフェランキング (TOP 10)</h3>
+                        <div class="popular-cafes" id="popularCafes">
+                            <div class="popular-cafe-item">
+                                <div class="rank">1</div>
+                                <div class="cafe-info">
+                                    <h4>カフェ・ド・パリ 渋谷店</h4>
+                                    <div class="cafe-stats">
+                                        <span><i class="fas fa-eye"></i> 1,234 閲覧</span>
+                                        <span><i class="fas fa-star"></i> 4.8</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="popular-cafe-item">
+                                <div class="rank">2</div>
+                                <div class="cafe-info">
+                                    <h4>スターバックスコーヒー 新宿南口店</h4>
+                                    <div class="cafe-stats">
+                                        <span><i class="fas fa-eye"></i> 1,105 閲覧</span>
+                                        <span><i class="fas fa-star"></i> 4.5</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="popular-cafe-item">
+                                <div class="rank">3</div>
+                                <div class="cafe-info">
+                                    <h4>ブルーボトルコーヒー 青山カフェ</h4>
+                                    <div class="cafe-stats">
+                                        <span><i class="fas fa-eye"></i> 989 閲覧</span>
+                                        <span><i class="fas fa-star"></i> 4.9</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="popular-cafe-item">
+                                <div class="rank">4</div>
+                                <div class="cafe-info">
+                                    <h4>猿田彦珈琲 恵比寿本店</h4>
+                                    <div class="cafe-stats">
+                                        <span><i class="fas fa-eye"></i> 856 閲覧</span>
+                                        <span><i class="fas fa-star"></i> 4.7</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="popular-cafe-item">
+                                <div class="rank">5</div>
+                                <div class="cafe-info">
+                                    <h4>コメダ珈琲店 池袋東口店</h4>
+                                    <div class="cafe-stats">
+                                        <span><i class="fas fa-eye"></i> 745 閲覧</span>
+                                        <span><i class="fas fa-star"></i> 4.3</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>最近のアクティビティ</h3>
+                        <div class="activity-list" id="recentActivity">
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background-color: #4CAF50;">
+                                    <i class="fas fa-user-plus"></i>
+                                </div>
+                                <div class="activity-details">
+                                    <p><strong>新規ユーザー登録</strong></p>
+                                    <span>佐藤花子さんが登録しました</span>
+                                    <small>5分前</small>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background-color: #2196F3;">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="activity-details">
+                                    <p><strong>新しいレビュー</strong></p>
+                                    <span>カフェ・ド・パリに5つ星レビュー</span>
+                                    <small>15分前</small>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background-color: #FF9800;">
+                                    <i class="fas fa-coffee"></i>
+                                </div>
+                                <div class="activity-details">
+                                    <p><strong>カフェ情報更新</strong></p>
+                                    <span>スターバックスの営業時間が更新されました</span>
+                                    <small>1時間前</small>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background-color: #F44336;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="activity-details">
+                                    <p><strong>違反報告</strong></p>
+                                    <span>不適切なレビューが報告されました</span>
+                                    <small>2時間前</small>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-icon" style="background-color: #9C27B0;">
+                                    <i class="fas fa-search"></i>
+                                </div>
+                                <div class="activity-details">
+                                    <p><strong>検索急増</strong></p>
+                                    <span>「渋谷 カフェ」の検索が急増しています</span>
+                                    <small>3時間前</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script th:src="@{/admin/js/admin.js}"></script>
+</body>
+</html>
