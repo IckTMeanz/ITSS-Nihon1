@@ -33,81 +33,25 @@ public class AuthController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // Hiển thị trang đăng nhập
     @GetMapping("/login")
     public String login() {
-        return "login";
+        return "login"; 
     }
 
-    // Xử lý logic khi người dùng đăng nhập
-    @PostMapping("/login")
-    public String loginUser(@RequestParam("email") String email,
-                           @RequestParam("password") String password,
-                           Model model,
-                           HttpSession session) {
-        try {
-            logger.info("Login attempt with email: {}", email);
-            
-            // Tìm user theo email
-            User user = userRepository.findByEmail(email).orElse(null);
-            
-            if (user == null) {
-                logger.warn("User not found with email: {}", email);
-                model.addAttribute("error", "Email không tồn tại");
-                return "login";
-            }
-            
-            logger.info("User found: {}", user.getId());
-            
-            // Kiểm tra mật khẩu
-            boolean passwordMatch = passwordEncoder.matches(password, user.getPassword());
-            logger.info("Password match result: {}", passwordMatch);
-            
-            if (!passwordMatch) {
-                logger.warn("Password mismatch for email: {}", email);
-                model.addAttribute("error", "Mật khẩu không chính xác");
-                return "login";
-            }
-            
-            // Đăng nhập thành công -> Lưu userId vào session
-            session.setAttribute("userId", user.getId());
-            session.setAttribute("userEmail", user.getEmail());
-            session.setAttribute("userName", user.getName());
-            
-            logger.info("User logged in successfully: {} (ID: {})", email, user.getId());
-            logger.info("Session attributes set - userId: {}, userEmail: {}, userName: {}", 
-                session.getAttribute("userId"), 
-                session.getAttribute("userEmail"), 
-                session.getAttribute("userName"));
-            
-            // Chuyển hướng về trang chủ
-            return "redirect:/";
-        } catch (Exception e) {
-            logger.error("Login error", e);
-            model.addAttribute("error", "Đăng nhập thất bại. Vui lòng thử lại.");
-            return "login";
-        }
-    }
-
-    // Hiển thị trang đăng ký
     @GetMapping("/register")
     public String showRegistrationForm(Model model) {
         model.addAttribute("user", new User());
         return "register";
     }
 
-    // Xử lý logic khi người dùng bấm nút Đăng ký
     @PostMapping("/register")
     public String registerUser(@ModelAttribute("user") User user, Model model) {
         try {
-            // Gọi service để lưu user (đã mã hóa mật khẩu bên Service)
-            userService.registerUser(user);
-            
-            // Đăng ký thành công -> Chuyển hướng về trang login với thông báo thành công
+            userService.registerUser(user);            
             return "redirect:/login?success";
         } catch (Exception e) {
-            logger.error("Registration error", e);
-            model.addAttribute("error", "Đăng ký thất bại. Có thể email đã được sử dụng.");
+            // Nếu có lỗi (ví dụ: Email đã tồn tại), hiển thị lại form đăng ký kèm thông báo lỗi
+            model.addAttribute("error", e.getMessage());
             return "register";
         }
     }

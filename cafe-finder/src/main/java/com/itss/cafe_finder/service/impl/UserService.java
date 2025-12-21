@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.itss.cafe_finder.model.User;
 import com.itss.cafe_finder.model.enums.UserRoleType;
+import com.itss.cafe_finder.model.enums.UserStatusType;
 import com.itss.cafe_finder.repository.UserRepository;
 
 import dto.request.UserUpdateRequest;
@@ -30,9 +31,13 @@ public class UserService implements UserDetailsService {
     private PasswordEncoder passwordEncoder;
 
     // Logic đăng ký user mới
-    public void registerUser(User user) {
+    public void registerUser(User user) throws Exception {
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new Exception("Email này đã được sử dụng!");
+        }
         user.setPassword(passwordEncoder.encode(user.getPassword())); // Mã hóa pass
         user.setRoleType(UserRoleType.customer); // Mặc định là customer
+        user.setStatus(UserStatusType.active); // Mặc định là active
         userRepository.save(user);
     }
 
@@ -60,10 +65,11 @@ public class UserService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
+        String roleName = "ROLE_" + user.getRoleType().name().toUpperCase();
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
                 user.getPassword(),
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRoleType().name()))
+                Collections.singletonList(new SimpleGrantedAuthority(roleName))
         );
     }
 
