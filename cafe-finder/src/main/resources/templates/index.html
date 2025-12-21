@@ -19,17 +19,20 @@
                 <a th:href="@{/}">☕ コーヒーファインダー</a>
             </div>
             <ul class="nav-menu">
-                <li><a th:href="@{/}" class="active">ホーム</a></li> <li><a th:href="@{/map}">地図</a></li> <li sec:authorize="!isAuthenticated()">
-                    <a th:href="@{/login}">ログイン</a> </li>
+                <li><a th:href="@{/}">ホーム</a></li>
+
                 <li sec:authorize="!isAuthenticated()">
-                    <a th:href="@{/register}">新規登録</a> </li>
+                    <a th:href="@{/login}">ログイン</a> 
+                </li>
 
                 <li class="dropdown" sec:authorize="isAuthenticated()">
                     <a href="#" class="dropdown-toggle">
                         <span sec:authentication="name">User</span> ▾
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a th:href="@{/settings}">👤 アカウント</a></li> <li>
+                        <li><a th:href="@{/settings}">👤 アカウント</a></li> 
+                        
+                        <li>
                             <form th:action="@{/logout}" method="post" id="logoutForm">
                                 <a href="#" onclick="document.getElementById('logoutForm').submit(); return false;">
                                     🚪 ログアウト

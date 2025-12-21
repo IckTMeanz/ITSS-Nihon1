@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -16,24 +17,35 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests((requests) -> requests
-                // Cho phép truy cập công khai các trang static, api tìm kiếm, và trang chủ
-                .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/images/**", "/api/cafes/**", "/register", "/login").permitAll()
-                // Các request khác yêu cầu đăng nhập
-                .anyRequest().permitAll()
+                .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/images/**",  "/register", "/login").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/cafes/**").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .anyRequest().authenticated()
             )
             .formLogin((form) -> form
-                .loginPage("/login") // Đường dẫn đến trang login tùy chỉnh
-                .usernameParameter("email") // Dùng email thay vì username
-                .defaultSuccessUrl("/") // Đăng nhập thành công thì về trang chủ
+                .loginPage("/login")
+                .loginProcessingUrl("/login")
+                .usernameParameter("email")
+                .defaultSuccessUrl("/", true)
+                .failureUrl("/login?error=true")
                 .permitAll()
             )
-            .logout((logout) -> logout.permitAll());
+            .rememberMe((rememberMe) -> rememberMe
+                .key("superSecretKey")
+                .tokenValiditySeconds(86400) // 1 day
+                .rememberMeParameter("remember-me")
+            )
+            .logout((logout) -> logout
+                .logoutUrl("/logout")
+                .logoutSuccessUrl("/login?logout=true")
+                .permitAll()
+            );
 
         return http.build();
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); // Mã hóa mật khẩu an toàn
+        return new BCryptPasswordEncoder();
     }
 }
