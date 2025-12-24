@@ -1,9 +1,8 @@
 package com.itss.cafe_finder.controller;
 
-import com.itss.cafe_finder.repository.UserRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -13,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 
 import com.itss.cafe_finder.model.User;
+import com.itss.cafe_finder.repository.UserRepository;
 import com.itss.cafe_finder.service.impl.UserService;
 
 import dto.request.UserUpdateRequest;
@@ -54,7 +54,9 @@ public class AuthController {
 
     @GetMapping("/update")
     public String showUpdateForm(Model model) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         model.addAttribute("userUpdateRequest", new UserUpdateRequest());
+        model.addAttribute("email", auth.getName());
         return "update"; // Trả về file update.html trong templates
     }
 

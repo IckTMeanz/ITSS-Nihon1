@@ -48,12 +48,10 @@ public class UserService implements UserDetailsService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
+        //Only name and dob can be updated
         user.setName(req.getName());
-        user.setPassword(passwordEncoder.encode(req.getPassword())); // Mã hóa password
-        user.setEmail(req.getEmail());
+        user.setDob(req.getDob());
         user.setUpdatedOn(ZonedDateTime.now());
-        
         System.out.println("Updating user: " + user);
         return userRepository.save(user);
     }
