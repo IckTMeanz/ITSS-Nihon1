@@ -18,9 +18,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
-@Data
 @Entity
 @Table(name = "users")
+@Data
 @DynamicUpdate
 public class User {
 
@@ -32,23 +32,19 @@ public class User {
 
     private String password;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String email;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role_type")
-    private UserRoleType roleType = UserRoleType.customer;
+    @Column(name = "role_type", insertable = false, updatable = false)
+    private UserRoleType roleType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
-    private UserStatusType status = UserStatusType.active;
+    @Column(name = "status", insertable = false, updatable = false)
+    private UserStatusType status;
 
     private LocalDate dob;
 
-    @Column(name = "updated_on")
+    @Column(name = "updated_on", insertable = false, updatable = false)
     private ZonedDateTime updatedOn;
-
-    public User(){
-        
-    }
 }
