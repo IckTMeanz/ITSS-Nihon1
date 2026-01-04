@@ -9,8 +9,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class AdminReviewService {
 
     @Autowired
@@ -43,7 +45,7 @@ public class AdminReviewService {
         Review review = reviewRepository.findById(id).orElse(null);
         if (review != null) {
             review.setStatus(status);
-            return toDTO(reviewRepository.save(review));
+            return toDTO(reviewRepository.saveAndFlush(review));
         }
         return null;
     }
@@ -71,7 +73,7 @@ public class AdminReviewService {
         int count = 0;
         for (Review review : pendingReviews.getContent()) {
             review.setStatus(ReviewStatusType.published);
-            reviewRepository.save(review);
+            reviewRepository.saveAndFlush(review);
             count++;
         }
         
@@ -97,4 +99,3 @@ public class AdminReviewService {
         return dto;
     }
 }
-

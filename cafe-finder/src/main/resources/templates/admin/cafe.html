@@ -3,11 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>カフェ管理 - カフェファインダー管理画面</title>
     <link rel="stylesheet" th:href="@{/admin/css/admin.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS & JS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .search-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .search-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            color: #999;
+            z-index: 1;
+        }
+        .search-input-location {
+            width: 100%;
+            padding: 10px 10px 10px 35px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+        }
+        .suggestions-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .suggestion-item:hover {
+            background-color: #f5f5f5;
+        }
+        .suggestion-name {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+        .suggestion-address {
+            font-size: 12px;
+            color: #666;
+        }
+        /* Toast Notification Styles */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        .toast {
+            background: #fff;
+            color: #333;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 4px solid #2ecc71;
+            animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+            min-width: 300px;
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        /* Fix dropdown hover stability */
+        .admin-user {
+            position: relative;
+        }
+        .admin-user::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 20px; /* Bridge gap */
+        }
+        .admin-user:hover .admin-user-dropdown {
+            display: block;
+        }
+    </style>
 </head>
 <body>
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
     <div class="admin-container">
         <!-- Sidebar -->
         <aside class="admin-sidebar">
@@ -47,8 +156,10 @@
                     <i class="fas fa-user-circle"></i>
                     <span>管理者 ▾</span>
                     <ul class="admin-user-dropdown">
-                        <li><a href="settings.html"><i class="fas fa-user-cog"></i> アカウント設定</a></li>
-                        <li><a href="#" onclick="handleAdminLogout(); return false;"><i class="fas fa-sign-out-alt"></i> ログアウト</a></li>
+                        <li>
+                            <form th:action="@{/logout}" method="post" id="adminLogoutForm" style="display: none;"></form>
+                            <a href="#" onclick="document.getElementById('adminLogoutForm').submit(); return false;"><i class="fas fa-sign-out-alt"></i> ログアウト</a>
+                        </li>
                     </ul>
                 </div>
             </header>
@@ -105,11 +216,6 @@
                         <label for="cafeName">カフェ名 <span class="required">*</span></label>
                         <input type="text" id="cafeName" required>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="cafeRating">評価</label>
-                        <input type="number" id="cafeRating" min="0" max="5" step="0.1" value="0">
-                    </div>
                 </div>
 
                 <div class="form-group">
@@ -119,13 +225,28 @@
 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="cafeDistance">距離 (km)</label>
-                        <input type="number" id="cafeDistance" step="0.1" value="0">
+                        <label for="cafeLat">緯度 (Latitude)</label>
+                        <input type="number" id="cafeLat" step="any" placeholder="例: 35.6895">
                     </div>
                     
                     <div class="form-group">
-                        <label for="cafeImage">画像URL</label>
-                        <input type="url" id="cafeImage">
+                        <label for="cafeLng">経度 (Longitude)</label>
+                        <input type="number" id="cafeLng" step="any" placeholder="例: 139.6917">
+                    </div>
+                </div>
+
+                <button type="button" class="btn-secondary btn-sm" onclick="openMapModal()" style="margin-bottom: 15px;">
+                    <i class="fas fa-map-marker-alt"></i> 地図で位置を選択
+                </button>
+
+                <div class="form-group">
+                    <label for="cafeImage">画像 (Image)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="cafeImage" placeholder="画像URLまたはファイル名">
+                        <input type="file" id="cafeImageFile" accept="image/*" style="display:none" onchange="handleFileUpload(this, 'cafeImage')">
+                        <button type="button" class="btn-secondary" onclick="document.getElementById('cafeImageFile').click()">
+                            <i class="fas fa-upload"></i> アップロード
+                        </button>
                     </div>
                 </div>
 
@@ -146,7 +267,11 @@
                             <input type="text" placeholder="メニュー名" class="menu-name">
                             <input type="text" placeholder="価格 (例: ¥450)" class="menu-price">
                             <input type="text" placeholder="説明" class="menu-description">
-                            <input type="text" placeholder="画像URL" class="menu-image">
+                            <div style="display:flex; gap:5px; flex:1;">
+                                <input type="text" placeholder="画像URL" class="menu-image" style="width:100%">
+                                <input type="file" accept="image/*" style="display:none" onchange="handleFileUpload(this, this.previousElementSibling)">
+                                <button type="button" class="btn-icon" onclick="this.previousElementSibling.click()"><i class="fas fa-upload"></i></button>
+                            </div>
                             <button type="button" class="btn-icon" onclick="removeMenuItem(this)">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -172,7 +297,203 @@
         </div>
     </div>
 
+    <!-- Map Modal -->
+    <div id="mapModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>位置を選択</h2>
+                <span class="modal-close" onclick="closeMapModal()">&times;</span>
+            </div>
+            <div class="search-container">
+                <div class="search-input-wrapper">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="search-input-location" id="mapSearchInput" placeholder="場所を検索 (例: 東京駅)..." autocomplete="off">
+                </div>
+                <div class="suggestions-dropdown" id="mapSuggestions"></div>
+            </div>
+            <div id="map" style="height: 400px; width: 100%; margin-bottom: 15px;"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeMapModal()">キャンセル</button>
+                <button type="button" class="btn-primary" onclick="confirmLocation()">決定</button>
+            </div>
+        </div>
+    </div>
+
     <script th:src="@{/admin/js/admin.js}"></script>
     <script th:src="@{/admin/js/cafe.js}"></script>
+    <script>
+        let map, marker;
+        let tempLat, tempLng;
+        let debounceTimer;
+        let currentSuggestions = [];
+
+        function openMapModal() {
+            document.getElementById('mapModal').style.display = 'block';
+            
+            // Initialize map if not exists
+            if (!map) {
+                map = L.map('map').setView([21.0285, 105.8542], 13); // Default Hanoi, Vietnam
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(map);
+
+                map.on('click', async function(e) {
+                    tempLat = e.latlng.lat;
+                    tempLng = e.latlng.lng;
+                    updateMarker(tempLat, tempLng);
+                    
+                    // Reverse geocode to update input
+                    const name = await fetchLocationName(tempLat, tempLng);
+                    document.getElementById('mapSearchInput').value = name;
+                });
+            }
+
+            // Reset temp variables
+            tempLat = null;
+            tempLng = null;
+
+            // Set initial marker from inputs
+            const currentLat = document.getElementById('cafeLat').value;
+            const currentLng = document.getElementById('cafeLng').value;
+            
+            if (currentLat && currentLng) {
+                const latlng = [parseFloat(currentLat), parseFloat(currentLng)];
+                map.setView(latlng, 15);
+                updateMarker(latlng[0], latlng[1]);
+                
+                // Initialize temp variables with current values
+                tempLat = parseFloat(currentLat);
+                tempLng = parseFloat(currentLng);
+            } else {
+                // Reset map to default if no location
+                map.setView([21.0285, 105.8542], 13);
+                if (marker) {
+                    map.removeLayer(marker);
+                    marker = null;
+                }
+                document.getElementById('mapSearchInput').value = '';
+            }
+            
+            setTimeout(() => map.invalidateSize(), 100);
+        }
+
+        function updateMarker(lat, lng) {
+            if (marker) {
+                marker.setLatLng([lat, lng]);
+            } else {
+                marker = L.marker([lat, lng]).addTo(map);
+            }
+        }
+
+        function closeMapModal() {
+            document.getElementById('mapModal').style.display = 'none';
+            document.getElementById('mapSearchInput').value = '';
+            document.getElementById('mapSuggestions').style.display = 'none';
+        }
+
+        function confirmLocation() {
+            if (tempLat && tempLng) {
+                document.getElementById('cafeLat').value = tempLat.toFixed(6);
+                document.getElementById('cafeLng').value = tempLng.toFixed(6);
+                
+                // Nếu đang sửa quán cafe (có ID), thực hiện lưu ngay vào DB
+                if (typeof currentCafeId !== 'undefined' && currentCafeId !== null) {
+                    saveCafe(null, currentCafeId);
+                }
+            }
+            closeMapModal();
+        }
+
+        // Search functionality
+        document.getElementById('mapSearchInput').addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                searchLocations(query);
+            }, 300);
+        });
+
+        async function searchLocations(query) {
+            if (query.length < 2) {
+                document.getElementById('mapSuggestions').style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Vietnam')}&limit=5&accept-language=vi`
+                );
+                const data = await response.json();
+                displaySuggestions(data);
+            } catch (error) {
+                console.error('Error searching locations:', error);
+            }
+        }
+
+        function displaySuggestions(suggestions) {
+            const container = document.getElementById('mapSuggestions');
+            if (suggestions.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            currentSuggestions = suggestions;
+            let html = '';
+            suggestions.forEach((s, i) => {
+                html += `
+                    <div class="suggestion-item" onclick="selectLocation(${i})">
+                        <div class="suggestion-name">${s.display_name.split(',')[0]}</div>
+                        <div class="suggestion-address">${s.display_name}</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            container.style.display = 'block';
+        }
+
+        function selectLocation(index) {
+            const location = currentSuggestions[index];
+            const lat = parseFloat(location.lat);
+            const lng = parseFloat(location.lon);
+            
+            tempLat = lat;
+            tempLng = lng;
+            
+            updateMarker(lat, lng);
+            map.setView([lat, lng], 16);
+            
+            document.getElementById('mapSearchInput').value = location.display_name;
+            document.getElementById('mapSuggestions').style.display = 'none';
+        }
+
+        async function fetchLocationName(lat, lng) {
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ja`);
+                const data = await response.json();
+                return data.display_name || `${lat}, ${lng}`;
+            } catch (error) {
+                return `${lat}, ${lng}`;
+            }
+        }
+
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = type === 'success' ? '#2ecc71' : '#e74c3c';
+            
+            const icon = type === 'success' ? '<i class="fas fa-check-circle" style="color:#2ecc71"></i>' : '<i class="fas fa-exclamation-circle" style="color:#e74c3c"></i>';
+            
+            toast.innerHTML = `${icon}<span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
 </body>
 </html>

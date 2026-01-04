@@ -225,5 +225,6 @@ public class AdminController {
         response.put("message", count + "件のレビューを承認しました");
         return ResponseEntity.ok(response);
     }
-}
 
+    
+}

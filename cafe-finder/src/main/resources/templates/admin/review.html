@@ -3,9 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>コンテンツ監視 - カフェファインダー管理画面</title>
     <link rel="stylesheet" th:href="@{/admin/css/admin.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Fix dropdown hover stability */
+        .admin-user {
+            position: relative;
+        }
+        .admin-user::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 20px; /* Bridge gap */
+        }
+        .admin-user:hover .admin-user-dropdown {
+            display: block;
+        }
+    </style>
 </head>
 <body>
     <div class="admin-container">
@@ -47,8 +66,10 @@
                     <i class="fas fa-user-circle"></i>
                     <span>管理者 ▾</span>
                     <ul class="admin-user-dropdown">
-                        <li><a href="settings.html"><i class="fas fa-user-cog"></i> アカウント設定</a></li>
-                        <li><a href="#" onclick="handleAdminLogout(); return false;"><i class="fas fa-sign-out-alt"></i> ログアウト</a></li>
+                        <li>
+                            <form th:action="@{/logout}" method="post" id="adminLogoutForm" style="display: none;"></form>
+                            <a href="#" onclick="document.getElementById('adminLogoutForm').submit(); return false;"><i class="fas fa-sign-out-alt"></i> ログアウト</a>
+                        </li>
                     </ul>
                 </div>
             </header>
@@ -60,14 +81,14 @@
                         <i class="fas fa-exclamation-triangle"></i>
                         <div>
                             <h3>要確認レビュー</h3>
-                            <p class="stat-value" th:text="${pendingReviews}">0</p>
+                            <p class="stat-value" id="pendingReviewsCount" th:text="${pendingReviews}">0</p>
                         </div>
                     </div>
                     <div class="stat-card success">
                         <i class="fas fa-check-circle"></i>
                         <div>
                             <h3>承認済み</h3>
-                            <p class="stat-value" th:text="${publishedReviews}">0</p>
+                            <p class="stat-value" id="publishedReviewsCount" th:text="${publishedReviews}">0</p>
                         </div>
                     </div>
                 </div>

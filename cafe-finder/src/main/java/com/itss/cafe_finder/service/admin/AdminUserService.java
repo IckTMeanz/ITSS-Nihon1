@@ -10,8 +10,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class AdminUserService {
 
     @Autowired
@@ -48,7 +50,7 @@ public class AdminUserService {
         if (user != null) {
             user.setStatus(status);
             user.setUpdatedOn(java.time.ZonedDateTime.now());
-            return toDTO(userRepository.save(user));
+            return toDTO(userRepository.saveAndFlush(user));
         }
         return null;
     }
@@ -57,7 +59,6 @@ public class AdminUserService {
         User user = userRepository.findById(id).orElse(null);
         if (user != null) {
             user.setRoleType(roleType);
-            user.setUpdatedOn(java.time.ZonedDateTime.now());
             return toDTO(userRepository.save(user));
         }
         return null;
@@ -90,4 +91,3 @@ public class AdminUserService {
         return dto;
     }
 }
-

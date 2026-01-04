@@ -49,15 +49,25 @@ async function approveAllPendingReviews() {
             return;
         }
 
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
         // Approve all pending reviews using the API endpoint
         const response = await fetch(`${API_BASE}/reviews/approve-all`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                [csrfHeader]: csrfToken
+            }
         });
 
         if (response.ok) {
             const result = await response.json();
             showNotification(result.message || `${result.count}件のレビューを承認しました`, 'success');
-            loadReviews();
+            setTimeout(() => {
+                loadReviews();
+                updateReviewStats();
+            }, 200);
         } else {
             showNotification('レビューの承認に失敗しました', 'error');
         }
@@ -86,14 +96,37 @@ async function loadReviews() {
         const data = await response.json();
         
         reviews = data.content || [];
-        totalPages = data.totalPages || 0;
-        totalElements = data.totalElements || 0;
+        totalPages = data.page?.totalPages || data.totalPages || 0;
+        totalElements = data.page?.totalElements || data.totalElements || 0;
         
         renderReviews();
         renderPagination();
     } catch (error) {
         console.error('Error loading reviews:', error);
         showNotification('レビューの読み込みに失敗しました', 'error');
+    }
+}
+
+// Update review statistics
+async function updateReviewStats() {
+    try {
+        // Fetch pending count
+        const pendingRes = await fetch(`${API_BASE}/reviews?status=pending&size=1`);
+        const pendingData = await pendingRes.json();
+        const pendingCount = pendingData.page?.totalElements || pendingData.totalElements || 0;
+        
+        // Fetch published count
+        const publishedRes = await fetch(`${API_BASE}/reviews?status=published&size=1`);
+        const publishedData = await publishedRes.json();
+        const publishedCount = publishedData.page?.totalElements || publishedData.totalElements || 0;
+
+        const pendingEl = document.getElementById('pendingReviewsCount');
+        if (pendingEl) pendingEl.textContent = pendingCount;
+
+        const publishedEl = document.getElementById('publishedReviewsCount');
+        if (publishedEl) publishedEl.textContent = publishedCount;
+    } catch (error) {
+        console.error('Error updating stats:', error);
     }
 }
 
@@ -138,11 +171,9 @@ function renderReviews() {
                             <i class="fas fa-check"></i> 承認
                         </button>
                     ` : ''}
-                    ${review.status !== 'pending' ? `
-                        <button class="btn-danger btn-sm" onclick="deleteReview(${review.id})">
-                            <i class="fas fa-trash"></i> 削除
-                        </button>
-                    ` : ''}
+                    <button class="btn-danger btn-sm" onclick="deleteReview(${review.id})">
+                        <i class="fas fa-trash"></i> 削除
+                    </button>
                     <button class="btn-secondary btn-sm" onclick="viewReviewDetail(${review.id})">
                         <i class="fas fa-info-circle"></i> 詳細
                     </button>
@@ -236,14 +267,24 @@ async function approveReview(id) {
         return;
     }
 
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
     try {
         const response = await fetch(`${API_BASE}/reviews/${id}/status?status=published`, {
-            method: 'PUT'
+            method: 'PUT',
+            headers: {
+                [csrfHeader]: csrfToken
+            }
         });
 
         if (response.ok) {
             showNotification('レビューを承認しました', 'success');
-            loadReviews();
+            setTimeout(() => {
+                loadReviews();
+                updateReviewStats();
+            }, 200);
         } else {
             showNotification('承認に失敗しました', 'error');
         }
@@ -259,14 +300,24 @@ async function deleteReview(id) {
         return;
     }
 
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
     try {
         const response = await fetch(`${API_BASE}/reviews/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                [csrfHeader]: csrfToken
+            }
         });
 
         if (response.ok) {
             showNotification('レビューを削除しました', 'success');
-            loadReviews();
+            setTimeout(() => {
+                loadReviews();
+                updateReviewStats();
+            }, 200);
         } else {
             showNotification('削除に失敗しました', 'error');
         }

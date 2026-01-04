@@ -39,7 +39,7 @@ public class User {
     private UserRoleType roleType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", insertable = false, updatable = false)
+    @Column(name = "status", insertable = false)
     private UserStatusType status;
 
     private Double lat;

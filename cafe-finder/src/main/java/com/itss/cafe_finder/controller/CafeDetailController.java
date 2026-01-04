@@ -7,14 +7,20 @@ import com.itss.cafe_finder.model.User;
 import com.itss.cafe_finder.service.CafeDetailService;
 import com.itss.cafe_finder.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.http.HttpSession;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/cafes")
@@ -29,12 +35,18 @@ public class CafeDetailController {
     private UserRepository userRepository;
 
     @GetMapping("/{id}")
-    public String getCafeDetailPage(@PathVariable Long id, Model model, HttpSession session) {
+    public String getCafeDetailPage(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(required = false) Integer star,
+            Model model, 
+            HttpSession session) {
         logger.info("Accessing cafe detail page: {}", id);
         
         CafeDTO cafe = cafeDetailService.getCafeDetail(id);
         List<DishDTO> dishes = cafeDetailService.getDishes(id);
-        List<ReviewDTO> reviews = cafeDetailService.getReviews(id);
+        Page<ReviewDTO> reviews = cafeDetailService.getReviews(id, star, page, size);
 
         if (cafe == null) {
             logger.warn("Cafe not found: {}", id);
@@ -43,36 +55,48 @@ public class CafeDetailController {
 
         model.addAttribute("cafe", cafe);
         model.addAttribute("dishes", dishes != null ? dishes : List.of());
-        model.addAttribute("reviews", reviews != null ? reviews : List.of());
+        model.addAttribute("reviews", reviews);
         
         // SessionInterceptor sẽ tự động add isLoggedIn vào model
         // Không cần thêm ở đây nữa
 
         return "details";
     }
+
+    @GetMapping("/{id}/reviews-fragment")
+    public String getReviewsFragment(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(required = false) Integer star,
+            Model model) {
+        
+        Page<ReviewDTO> reviews = cafeDetailService.getReviews(id, star, page, size);
+        model.addAttribute("reviews", reviews);
+        return "details :: reviewList";
+    }
     
     @PostMapping("/{id}/reviews")
-    public String saveReview(@PathVariable Long id, 
+    @ResponseBody
+    public ResponseEntity<?> saveReview(@PathVariable Long id, 
                            @RequestParam("star") Integer star,
-                           @RequestParam("content") String content,
-                           HttpSession session) {
+                           @RequestParam("content") String content) {
         
         logger.info("Saving review for cafe: {}", id);
         
-        // Lấy user ID từ session
-        Long userId = (Long) session.getAttribute("userId");
-        logger.info("User ID from session: {}", userId);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         
-        if (userId == null) {
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
             logger.warn("User not logged in - redirecting to login");
-            return "redirect:/login";
+            return ResponseEntity.status(401).body(Map.of("error", "User not logged in"));
         }
         
-        // Lấy user từ database
-        User user = userRepository.findById(userId).orElse(null);
+        String email = auth.getName();
+        User user = userRepository.findByEmail(email).orElse(null);
+        
         if (user == null) {
-            logger.warn("User not found in database: {}", userId);
-            return "redirect:/login";
+            logger.warn("User not found in database: {}", email);
+            return ResponseEntity.status(401).body(Map.of("error", "User not found"));
         }
         
         logger.info("User found: {} ({})", user.getName(), user.getId());
@@ -81,6 +105,6 @@ public class CafeDetailController {
         cafeDetailService.saveReview(id, user, star, content);
         
         logger.info("Review saved successfully");
-        return "redirect:/cafes/" + id;
+        return ResponseEntity.ok(Map.of("message", "レビューを投稿しました。承認をお待ちください。"));
     }
 }

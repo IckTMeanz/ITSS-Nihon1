@@ -34,7 +34,8 @@ async function loadUsers() {
         
         const params = new URLSearchParams({
             page: currentPage.toString(),
-            size: pageSize.toString()
+            size: pageSize.toString(),
+            _t: new Date().getTime() // Thêm timestamp để tránh cache
         });
         if (keyword) params.append('keyword', keyword);
         if (roleType) params.append('roleType', roleType);
@@ -44,8 +45,8 @@ async function loadUsers() {
         const data = await response.json();
         
         users = data.content || [];
-        totalPages = data.totalPages || 0;
-        totalElements = data.totalElements || 0;
+        totalPages = data.page?.totalPages || data.totalPages || 0;
+        totalElements = data.page?.totalElements || data.totalElements || 0;
         
         renderUsers();
         renderPagination();
@@ -181,9 +182,6 @@ async function viewUserDetail(id) {
         const formattedDate = user.updatedOn 
             ? new Date(user.updatedOn).toLocaleDateString('ja-JP')
             : '-';
-        const dob = user.dob 
-            ? new Date(user.dob).toLocaleDateString('ja-JP')
-            : '-';
         
         content.innerHTML = `
             <div class="user-detail">
@@ -206,10 +204,6 @@ async function viewUserDetail(id) {
                 <div class="user-detail-row">
                     <div class="user-detail-label">ステータス</div>
                     <div class="user-detail-value">${user.status === 'active' ? 'アクティブ' : 'ロック中'}</div>
-                </div>
-                <div class="user-detail-row">
-                    <div class="user-detail-label">生年月日</div>
-                    <div class="user-detail-value">${dob}</div>
                 </div>
                 <div class="user-detail-row">
                     <div class="user-detail-label">更新日時</div>
@@ -236,14 +230,21 @@ async function banUser(id) {
         return;
     }
 
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
     try {
         const response = await fetch(`${API_BASE}/users/${id}/status?status=banned`, {
-            method: 'PUT'
+            method: 'PUT',
+            headers: {
+                [csrfHeader]: csrfToken
+            }
         });
 
         if (response.ok) {
             showNotification('ユーザーをロックしました', 'success');
-            loadUsers();
+            setTimeout(() => loadUsers(), 200); // Đợi 200ms để DB kịp cập nhật
         } else {
             showNotification('ロックに失敗しました', 'error');
         }
@@ -259,19 +260,26 @@ async function unbanUser(id) {
         return;
     }
 
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
     try {
         const response = await fetch(`${API_BASE}/users/${id}/status?status=active`, {
-            method: 'PUT'
+            method: 'PUT',
+            headers: {
+                [csrfHeader]: csrfToken
+            }
         });
 
         if (response.ok) {
             showNotification('ユーザーのロックを解除しました', 'success');
-            loadUsers();
+            setTimeout(() => loadUsers(), 200); // Đợi 200ms để DB kịp cập nhật
         } else {
             showNotification('ロック解除に失敗しました', 'error');
         }
     } catch (error) {
         console.error('Error unbanning user:', error);
         showNotification('ロック解除に失敗しました', 'error');
-    }
+    } 
 }
