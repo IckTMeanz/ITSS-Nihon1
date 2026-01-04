@@ -26,7 +26,12 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     long countByStatus(ReviewStatusType status);
 
-    // Thêm hàm này để lấy review theo cafeId
     List<Review> findByCafeId(Long cafeId);
-    
+    List<Review> findByCafeIdAndStatus(Long cafeId, ReviewStatusType status);
+
+    Page<Review> findByCafeId(Long cafeId, Pageable pageable);
+    Page<Review> findByCafeIdAndStatus(Long cafeId, ReviewStatusType status, Pageable pageable);
+
+    Page<Review> findByCafeIdAndStar(Long cafeId, Integer star, Pageable pageable);
+    Page<Review> findByCafeIdAndStatusAndStar(Long cafeId, ReviewStatusType status, Integer star, Pageable pageable);
 }

@@ -5,16 +5,20 @@ import com.itss.cafe_finder.model.User;
 import com.itss.cafe_finder.repository.CafeRepository;
 import com.itss.cafe_finder.repository.UserRepository;
 import dto.CafeDTO;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.util.Optional;
 
 @Service
 public class CafeService {
@@ -107,6 +111,12 @@ public class CafeService {
         return ResponseEntity.ok(cafes.map(cafe -> toDTO(cafe, currentUser)));
     }
 
+    
+    public List<CafeDTO> getAllCafes() {
+        List<Cafe> cafes = cafeRepository.findAll();
+        return cafes.stream().map(c -> toDTO(c, null)).toList();
+    }
+
     private CafeDTO toDTO(Cafe c, User currentUser) {
         CafeDTO dto = new CafeDTO();
         dto.setId(c.getId());
@@ -116,26 +126,19 @@ public class CafeService {
         dto.setDescription(c.getDescription());
         dto.setImage(c.getImage());
         dto.setStatus(c.getStatus() != null ? c.getStatus().toString() : "opening");
+        dto.setLat(c.getLat());
+        dto.setLng(c.getLng());
 
-        if (currentUser == null) {
-            dto.setLat(null);
-            dto.setLng(null);
-            dto.setDistance(null);
-        } else {
-            dto.setLat(c.getLat());
-            dto.setLng(c.getLng());
+        if (currentUser != null && currentUser.getLat() != null && currentUser.getLng() != null 
+            && c.getLat() != null && c.getLng() != null) {
             
-            if (currentUser.getLat() != null && currentUser.getLng() != null 
-                && c.getLat() != null && c.getLng() != null) {
-                
-                double dist = calculateHaversineDistance(
-                    currentUser.getLat(), currentUser.getLng(),
-                    c.getLat(), c.getLng()
-                );
-                dto.setDistance(Math.round(dist * 10.0) / 10.0);
-            } else {
-                dto.setDistance(null);
-            }
+            double dist = calculateHaversineDistance(
+                currentUser.getLat(), currentUser.getLng(),
+                c.getLat(), c.getLng()
+            );
+            dto.setDistance(Math.round(dist * 10.0) / 10.0);
+        } else {
+            dto.setDistance(null);
         }
         return dto;
     }

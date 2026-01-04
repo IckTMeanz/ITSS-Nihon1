@@ -7,6 +7,7 @@ let currentPage = 0;
 let pageSize = 10;
 let totalPages = 0;
 let totalElements = 0;
+let currentCafeId = null; // Biến theo dõi ID quán cafe đang sửa
 
 // Load cafes on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -42,8 +43,8 @@ async function loadCafes() {
         const data = await response.json();
         
         cafes = data.content || [];
-        totalPages = data.totalPages || 0;
-        totalElements = data.totalElements || 0;
+        totalPages = data.page?.totalPages || data.totalPages || 0;
+        totalElements = data.page?.totalElements || data.totalElements || 0;
         
         renderCafes();
         renderPagination();
@@ -178,9 +179,9 @@ async function viewCafeDetail(id) {
             : '-';
         
         let html = `
-            <div class="cafe-detail">
+            <div class="cafe-detail" data-cafe-id="${cafe.id}">
                 <div class="cafe-detail-header">
-                    ${cafe.image ? `<img src="${cafe.image}" alt="${cafe.name}" class="cafe-detail-image">` : ''}
+                    <img src="${getImageUrl(cafe.image)}" alt="${cafe.name}" class="cafe-detail-image" onerror="this.src='/images/placeholder.png'">
                     <div class="cafe-detail-info">
                         <h2>${cafe.name || ''}</h2>
                         <div class="cafe-detail-meta">
@@ -205,7 +206,7 @@ async function viewCafeDetail(id) {
             cafe.dishes.forEach(dish => {
                 html += `
                     <div class="menu-item-card">
-                        ${dish.image ? `<img src="${dish.image}" alt="${dish.name}" class="menu-item-image">` : ''}
+                        <img src="${getImageUrl(dish.image)}" alt="${dish.name}" class="menu-item-image" onerror="this.src='/images/placeholder.png'">
                         <div class="menu-item-info">
                             <h4>${dish.name || ''}</h4>
                             <p class="menu-item-price">¥${dish.price || 0}</p>
@@ -281,6 +282,7 @@ function closeCafeDetailModal() {
 
 // Open add cafe modal
 function openAddCafeModal() {
+    currentCafeId = null; // Reset ID khi thêm mới
     document.getElementById('modalTitle').textContent = 'カフェ追加';
     document.getElementById('cafeForm').reset();
     renderMenuItems([]);
@@ -293,12 +295,13 @@ async function editCafe(id) {
     try {
         const response = await fetch(`${API_BASE}/cafes/${id}`);
         const cafe = await response.json();
+        currentCafeId = id; // Lưu ID quán đang sửa
         
         document.getElementById('modalTitle').textContent = 'カフェ編集';
         document.getElementById('cafeName').value = cafe.name || '';
         document.getElementById('cafeAddress').value = cafe.address || '';
-        document.getElementById('cafeRating').value = cafe.rating || 0;
-        document.getElementById('cafeDistance').value = cafe.distance || 0;
+        document.getElementById('cafeLat').value = cafe.lat || '';
+        document.getElementById('cafeLng').value = cafe.lng || '';
         document.getElementById('cafeImage').value = cafe.image || '';
         document.getElementById('cafeDescription').value = cafe.description || '';
         document.getElementById('cafeHours').value = cafe.time || '';
@@ -314,19 +317,23 @@ async function editCafe(id) {
 
 // Save cafe
 async function saveCafe(event, id) {
-    event.preventDefault();
+    if (event) event.preventDefault(); // Cho phép gọi hàm mà không cần event
     
     const cafeData = {
         name: document.getElementById('cafeName').value,
         address: document.getElementById('cafeAddress').value,
-        rating: parseFloat(document.getElementById('cafeRating').value) || 0,
-        distance: parseFloat(document.getElementById('cafeDistance').value) || 0,
+        lat: document.getElementById('cafeLat').value ? parseFloat(document.getElementById('cafeLat').value) : null,
+        lng: document.getElementById('cafeLng').value ? parseFloat(document.getElementById('cafeLng').value) : null,
         image: document.getElementById('cafeImage').value,
         description: document.getElementById('cafeDescription').value,
         time: document.getElementById('cafeHours').value,
         status: 'opening',
         dishes: collectDishes()
     };
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
 
     try {
         const url = id ? `${API_BASE}/cafes/${id}` : `${API_BASE}/cafes`;
@@ -335,7 +342,8 @@ async function saveCafe(event, id) {
         const response = await fetch(url, {
             method: method,
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                [csrfHeader]: csrfToken
             },
             body: JSON.stringify(cafeData)
         });
@@ -359,9 +367,16 @@ async function deleteCafe(id) {
         return;
     }
 
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
     try {
         const response = await fetch(`${API_BASE}/cafes/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                [csrfHeader]: csrfToken
+            }
         });
 
         if (response.ok) {
@@ -390,7 +405,11 @@ function addMenuItem() {
         <input type="text" placeholder="メニュー名" class="menu-name">
         <input type="text" placeholder="価格 (例: ¥450)" class="menu-price">
         <input type="text" placeholder="説明" class="menu-description">
-        <input type="text" placeholder="画像URL" class="menu-image">
+        <div style="display:flex; gap:5px; flex:1;">
+            <input type="text" placeholder="画像URL" class="menu-image" style="width:100%">
+            <input type="file" accept="image/*" style="display:none" onchange="handleFileUpload(this, this.previousElementSibling)">
+            <button type="button" class="btn-icon" onclick="this.previousElementSibling.click()"><i class="fas fa-upload"></i></button>
+        </div>
         <button type="button" class="btn-icon" onclick="removeMenuItem(this)">
             <i class="fas fa-trash"></i>
         </button>
@@ -417,11 +436,16 @@ function renderMenuItems(dishes) {
     dishes.forEach(dish => {
         const row = document.createElement('div');
         row.className = 'menu-item-row';
+        if (dish.id) row.dataset.id = dish.id;
         row.innerHTML = `
             <input type="text" placeholder="メニュー名" class="menu-name" value="${dish.name || ''}">
             <input type="text" placeholder="価格 (例: ¥450)" class="menu-price" value="${dish.price || ''}">
             <input type="text" placeholder="説明" class="menu-description" value="${dish.description || ''}">
-            <input type="text" placeholder="画像URL" class="menu-image" value="${dish.image || ''}">
+            <div style="display:flex; gap:5px; flex:1;">
+                <input type="text" placeholder="画像URL" class="menu-image" value="${dish.image || ''}" style="width:100%">
+                <input type="file" accept="image/*" style="display:none" onchange="handleFileUpload(this, this.previousElementSibling)">
+                <button type="button" class="btn-icon" onclick="this.previousElementSibling.click()"><i class="fas fa-upload"></i></button>
+            </div>
             <button type="button" class="btn-icon" onclick="removeMenuItem(this)">
                 <i class="fas fa-trash"></i>
             </button>
@@ -435,17 +459,21 @@ function collectDishes() {
     const rows = document.querySelectorAll('#menuItems .menu-item-row');
     const dishes = [];
     rows.forEach(row => {
+        const id = row.dataset.id;
         const name = row.querySelector('.menu-name')?.value?.trim();
         const price = row.querySelector('.menu-price')?.value;
         const description = row.querySelector('.menu-description')?.value?.trim();
         const image = row.querySelector('.menu-image')?.value?.trim();
         if (!name && !price && !description && !image) return;
-        dishes.push({
+        
+        const dishObj = {
             name,
             price: price ? parseFloat(price) : 0,
             description,
             image
-        });
+        };
+        if (id) dishObj.id = parseInt(id);
+        dishes.push(dishObj);
     });
     return dishes;
 }
@@ -496,11 +524,16 @@ async function saveEditedDish() {
         image: document.getElementById('editDishImage').value
     };
 
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
     try {
         const response = await fetch(`${API_BASE}/dishes/${dishId}`, {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                [csrfHeader]: csrfToken
             },
             body: JSON.stringify(dishData)
         });
@@ -519,6 +552,46 @@ async function saveEditedDish() {
         showNotification('メニューの更新に失敗しました', 'error');
     }
 }
+
+async function handleFileUpload(input, targetIdOrElement) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
+    try {
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                [csrfHeader]: csrfToken
+            }
+        });
+
+        if (response.ok) {
+            const imageUrl = await response.text();
+            // Điền URL trả về vào ô input text để khi bấm Save Cafe sẽ lưu URL này
+            const target = typeof targetIdOrElement === 'string' ? document.getElementById(targetIdOrElement) : targetIdOrElement;
+            target.value = imageUrl;
+            showNotification('画像がアップロードされました', 'success');
+        }
+    } catch (error) {
+        console.error('Upload failed', error);
+    }
+}
+
+// Helper function to get correct image URL
+function getImageUrl(image) {
+    if (!image) return '/images/placeholder.png';
+    if (image.startsWith('http') || image.startsWith('https')) return image;
+    return '/images/' + image;
+}
+
 
 // Close edit dish modal
 function closeEditDishModal() {
@@ -545,7 +618,11 @@ document.body.insertAdjacentHTML('beforeend', `
                 <textarea id="editDishDescription"></textarea><br>
 
                 <label for="editDishImage">画像 URL:</label>
-                <input type="text" id="editDishImage"><br>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="editDishImage" style="flex:1">
+                    <input type="file" accept="image/*" style="display:none" onchange="handleFileUpload(this, document.getElementById('editDishImage'))">
+                    <button type="button" class="btn-secondary" onclick="this.previousElementSibling.click()"><i class="fas fa-upload"></i></button>
+                </div><br>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-primary" onclick="saveEditedDish()">保存</button>

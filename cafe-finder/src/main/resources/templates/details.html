@@ -4,8 +4,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>カフェ詳細 - コーヒーファインダー</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Toast Notification Styles */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+        .toast {
+            background: #fff;
+            color: #333;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 4px solid #2ecc71;
+            animation: slideInRight 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+            min-width: 300px;
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
 </head>
 
 <body style="
@@ -14,6 +47,9 @@
     margin:0;
     padding:20px 0;
 ">
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
 
     <div style="
         max-width:1100px;
@@ -35,7 +71,7 @@
 
             <!-- CAFE IMAGE -->
         <img
-            th:src="${cafe.image != null ? '/images/' + cafe.image : '/images/placeholder.png'}"
+            th:src="${#strings.isEmpty(cafe.image) ? '/images/placeholder.png' : (#strings.startsWith(cafe.image, 'http') ? cafe.image : '/images/' + cafe.image)}"
             th:alt="${cafe.name}"
             onerror="this.onerror=null; this.src='/images/placeholder.png';"
             style="
@@ -56,8 +92,11 @@
                    <span th:text="${cafe.rating}">0</span> / 5
                 </p>
 
-                <p><i class="fas fa-location-arrow" style="color:#3498db; margin-right:8px;"></i>
-                   <span th:text="${cafe.lat}"></span>, <span th:text="${cafe.lng}"></span>
+                <p>
+                    <a th:href="@{/map(id=${cafe.id})}" style="display:inline-flex; align-items:center; color:#3498db; text-decoration:none; font-weight:600; transition:0.2s;" onmouseover="this.style.color='#2980b9'" onmouseout="this.style.color='#3498db'">
+                        <i class="fas fa-map-marked-alt" style="margin-right:8px; font-size:18px;"></i>
+                        地図で見る
+                    </a>
                 </p>
 
                 <p>
@@ -103,7 +142,7 @@
                 
                 <!-- IMAGE -->
                 <img
-                th:src="${dish.image != null ? '/images/' + dish.image : '/images/placeholder.png'}"
+                th:src="${#strings.isEmpty(dish.image) ? '/images/placeholder.png' : (#strings.startsWith(dish.image, 'http') ? dish.image : '/images/' + dish.image)}"
                 onerror="this.onerror=null; this.src='/images/placeholder.png';"
                 style="width:85px; height:85px; border-radius:12px; object-fit:cover;"
                 />
@@ -160,52 +199,110 @@
         <hr style="margin:40px 0;">
 
         <!-- REVIEW TITLE -->
-        <h3 style="font-size:26px; margin-bottom:20px;">レビュー</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="font-size:26px; margin:0;">レビュー</h3>
+            
+            <!-- FILTER FORM -->
+            <div style="display:flex; align-items:center;">
+                <select id="starFilter" name="star" onchange="loadReviews(0)" 
+                    style="padding:6px; border-radius:6px; border:1px solid #ccc; font-size:14px;">
+                    <option value="">全ての評価</option>
+                    <option value="5" th:selected="${param.star != null and param.star[0] == '5'}">★★★★★ (5)</option>
+                    <option value="4" th:selected="${param.star != null and param.star[0] == '4'}">★★★★☆ (4)</option>
+                    <option value="3" th:selected="${param.star != null and param.star[0] == '3'}">★★★☆☆ (3)</option>
+                    <option value="2" th:selected="${param.star != null and param.star[0] == '2'}">★★☆☆☆ (2)</option>
+                    <option value="1" th:selected="${param.star != null and param.star[0] == '1'}">★☆☆☆☆ (1)</option>
+                </select>
+            </div>
+        </div>
 
         <!-- LIST OF REVIEWS -->
-        <div style="display:flex; flex-direction:column; gap:20px;">
+        <div id="reviewContainer">
+        <div th:fragment="reviewList" style="min-height: 600px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="display:flex; flex-direction:column; gap:16px;">
 
             <!-- ONE REVIEW -->
             <div th:each="review : ${reviews}"
                 style="
-                    background:#fafafa;
+                    background:white;
                     padding:20px;
                     border-radius:12px;
-                    box-shadow:0 2px 6px rgba(0,0,0,0.06);
+                    border: 1px solid #eee;
+                    display: flex;
+                    gap: 16px;
                 ">
                 
-                <div style="display:flex; justify-content:space-between;">
-                    <!-- USERNAME -->
-                    <strong style="font-size:17px; color:#333;"
-                            th:text="${review.userName}">
-                        ユーザー名
-                    </strong>
-
-                    <!-- STARS -->
-                    <span style="color:#f1c40f; font-size:18px;">
-                        ★ <span th:text="${review.star}">5</span> / 5
-                    </span>
+                <!-- AVATAR -->
+                <div style="
+                    width: 48px; height: 48px;
+                    background: #e0e0e0;
+                    border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center;
+                    font-weight: bold; color: #555;
+                    font-size: 20px;
+                    flex-shrink: 0;
+                " th:text="${review.userName != null ? #strings.substring(review.userName, 0, 1) : 'U'}">
+                    U
                 </div>
 
-                <!-- CONTENT -->
-                <p th:text="${review.content}"
-                    style="margin-top:12px; font-size:15px; color:#555; line-height:1.6;">
-                    コメント
-                </p>
-
-                <!-- DATE -->
-                <p th:text="${review.createdAt != null ? #temporals.format(review.createdAt, 'yyyy/MM/dd HH:mm') : ''}"
-                style="margin-top:8px; font-size:13px; color:#888;">
-                    投稿日時
-                </p>
+                <div style="flex: 1;">
+                    <div style="display:flex; justify-content:space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div>
+                            <div style="font-weight:bold; font-size:16px; color:#333;" th:text="${review.userName}">User</div>
+                            <div style="font-size:12px; color:#888;" th:text="${review.createdAt != null ? #temporals.format(review.createdAt, 'yyyy/MM/dd HH:mm') : ''}">Date</div>
+                        </div>
+                        <div style="color:#f1c40f; font-size:16px;">
+                            <span th:each="i : ${#numbers.sequence(1, 5)}">
+                                <i th:class="${i <= review.star ? 'fas fa-star' : 'far fa-star'}"></i>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <p th:text="${review.content}" style="margin:0; font-size:15px; color:#444; line-height:1.5;"></p>
+                </div>
             </div>
 
             <!-- NO REVIEW -->
-            <p th:if="${#lists.isEmpty(reviews)}"
-                style="text-align:center; color:gray; font-style:italic;">
-                レビューはまだありません。
-            </p>
+            <div th:if="${reviews.isEmpty()}"
+                style="text-align:center; color:gray; padding: 40px; background: #f9f9f9; border-radius: 12px;">
+                <i class="far fa-comment-dots" style="font-size: 48px; margin-bottom: 16px; color: #ccc;"></i>
+                <p>レビューはまだありません。</p>
+            </div>
 
+        </div>
+
+        <!-- PAGINATION -->
+        <div th:if="${reviews.totalPages > 1}"
+             style="display:flex; justify-content:center; gap:8px; margin-top:24px; padding-top: 20px; border-top: 1px solid #eee;">
+            
+            <!-- Prev -->
+            <a th:if="${reviews.hasPrevious()}"
+               href="javascript:void(0)"
+               th:onclick="'loadReviews(' + ${reviews.number - 1} + ')'"
+               style="padding:8px 12px; background:white; border:1px solid #ddd; border-radius:4px; text-decoration:none; color:#333; cursor:pointer;">
+               &lt;
+            </a>
+
+            <!-- Pages -->
+            <th:block th:each="i : ${#numbers.sequence(0, reviews.totalPages - 1)}">
+                <a href="javascript:void(0)"
+                   th:onclick="'loadReviews(' + ${i} + ')'"
+                   th:text="${i + 1}"
+                   th:style="${i == reviews.number ? 'background:#3498db; color:white; border-color:#3498db;' : 'background:white; color:#333;'}"
+                   style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; text-decoration:none; cursor:pointer;">
+                   1
+                </a>
+            </th:block>
+
+            <!-- Next -->
+            <a th:if="${reviews.hasNext()}"
+               href="javascript:void(0)"
+               th:onclick="'loadReviews(' + ${reviews.number + 1} + ')'"
+               style="padding:8px 12px; background:white; border:1px solid #ddd; border-radius:4px; text-decoration:none; color:#333; cursor:pointer;">
+               &gt;
+            </a>
+        </div>
+        </div>
         </div>
 
         <hr style="margin:40px 0;">
@@ -227,7 +324,7 @@
             <a href="/login" style="color:#0066cc; text-decoration:underline; margin-left:8px;">ログインページへ</a>
         </div>
 
-        <form sec:authorize="isAuthenticated()" th:action="@{/cafes/{id}/reviews(id=${cafe.id})}" method="post"
+        <form id="reviewForm" sec:authorize="isAuthenticated()"
             style="
                 background:white;
                 padding:22px;
@@ -304,5 +401,73 @@
 
     </div>
 
+    <script th:inline="javascript">
+        function loadReviews(page) {
+            const cafeId = /*[[${cafe.id}]]*/ 0;
+            const star = document.getElementById('starFilter').value;
+            
+            let url = '/cafes/' + cafeId + '/reviews-fragment?page=' + page + '&size=5';
+            if (star) url += '&star=' + star;
+            
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('reviewContainer').innerHTML = html;
+                })
+                .catch(error => console.error('Error loading reviews:', error));
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = type === 'success' ? '#2ecc71' : '#e74c3c';
+            
+            const icon = type === 'success' ? '<i class="fas fa-check-circle" style="color:#2ecc71"></i>' : '<i class="fas fa-exclamation-circle" style="color:#e74c3c"></i>';
+            
+            toast.innerHTML = `${icon}<span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        document.getElementById('reviewForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const cafeId = /*[[${cafe.id}]]*/ 0;
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+            
+            try {
+                const response = await fetch(`/cafes/${cafeId}/reviews`, {
+                    method: 'POST',
+                    headers: {
+                        [csrfHeader]: csrfToken
+                    },
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showToast(data.message);
+                    form.reset();
+                    loadReviews(0); // Reload reviews list
+                } else if (response.status === 401) {
+                    window.location.href = '/login';
+                } else {
+                    showToast('エラーが発生しました', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showToast('エラーが発生しました', 'error');
+            }
+        });
+    </script>
 </body>
 </html>

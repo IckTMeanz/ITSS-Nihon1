@@ -7,13 +7,22 @@
   <link rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
     body {
       margin: 0;
       font-family: "Segoe UI", Arial, sans-serif;
       display: flex;
+      height: 100vh;
       background: #f4f6f8;
+    }
+
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
     }
 
     #sidebar {
@@ -115,183 +124,425 @@
 
     #map {
       flex: 1;
-      height: 100vh;
+      height: 100%;
+    }
+
+    /* Cafe Detail Popup Styles */
+    .cafe-detail-popup {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      z-index: 1000;
+      overflow: hidden;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .cafe-detail-popup img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+    }
+
+    .popup-content {
+      padding: 16px;
+    }
+
+    .popup-content h3 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      color: #333;
+    }
+
+    .popup-info-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .popup-btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      background: #2563eb;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: bold;
+      margin-top: 12px;
+      box-sizing: border-box;
+    }
+
+    .popup-btn:hover {
+      background: #1d4ed8;
+    }
+
+    .close-popup-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.5);
+      color: white;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: background 0.2s;
+    }
+
+    .close-popup-btn:hover {
+      background: rgba(0,0,0,0.7);
     }
   </style>
 </head>
 
 <body>
 
-<div id="sidebar">
-  <div class="app-title">☕ Cafe Finder Hanoi</div>
+  <div class="main-container">
+    <div id="sidebar">
+      <div class="app-title">☕ Cafe Finder Hanoi</div>
 
-  <div class="controls">
-    <button id="btnUserLocation">📍 Chọn vị trí của bạn</button>
-  </div>
-
-  <div class="travel-modes">
-    <button class="mode-btn active" data-mode="driving">🚗</button>
-    <button class="mode-btn" data-mode="walking">🚶</button>
-    <button class="mode-btn" data-mode="cycling">🚴</button>
-  </div>
-
-  <div class="section-title">Danh sách quán cafe</div>
-  <div id="cafeList"></div>
-</div>
-
-<div id="map"></div>
-
-<script>
-/* ================= MAP ================= */
-var map = L.map("map").setView([21.0285, 105.8542], 13);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-
-/* ================= ICONS ================= */
-const redIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  iconSize: [25,41],
-  iconAnchor: [12,41]
-});
-
-const greenIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  iconSize: [25,41],
-  iconAnchor: [12,41]
-});
-
-const blueIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  iconSize: [25,41],
-  iconAnchor: [12,41]
-});
-
-/* ================= DATA ================= */
-var cafes = [
-  { name:"The Note Coffee (Hoàn Kiếm)", lat:21.0289, lng:105.8533, rating:4.5 },
-  { name:"Highlands Coffee Kim Mã", lat:21.0338, lng:105.8145, rating:4.0 },
-  { name:"Tranquil Books & Coffee", lat:21.0167, lng:105.8280, rating:4.8 },
-  { name:"The Coffee House Bà Triệu", lat:21.0135, lng:105.8478, rating:4.2 },
-  { name:"Cộng Cà Phê Cầu Giấy", lat:21.0369, lng:105.7920, rating:4.1 },
-  { name:"Starbucks Nguyễn Trãi", lat:20.9978, lng:105.8116, rating:4.3 },
-  { name:"Maison de Tet Decor (Tây Hồ)", lat:21.0732, lng:105.8184, rating:4.6 },
-  { name:"Coffee Bike Long Biên", lat:21.0462, lng:105.8851, rating:4.0 },
-  { name:"Gong Cha Hà Đông", lat:20.9719, lng:105.7765, rating:3.9 },
-  { name:"The Coffee House Mỹ Đình", lat:21.0281, lng:105.7706, rating:4.4 }
-];
-
-let cafeMarkers = [];
-let userLatLng = null;
-let userMarker = null;
-let selectingUser = false;
-let routeLayer = null;
-let currentMode = "driving";
-let selectedCafe = null;
-
-/* ================= USER LOCATION ================= */
-document.getElementById("btnUserLocation").onclick = () => {
-  selectingUser = true;
-  alert("Click lên bản đồ để chọn vị trí của bạn");
-};
-
-map.on("click", e => {
-  if (!selectingUser) return;
-  selectingUser = false;
-  userLatLng = e.latlng;
-
-  if (userMarker) map.removeLayer(userMarker);
-  userMarker = L.marker(userLatLng, { icon: blueIcon })
-    .addTo(map)
-    .bindPopup("📍 Vị trí của bạn")
-    .openPopup();
-
-  updateCafeList();
-});
-
-/* ================= DISTANCE ================= */
-function distanceKm(a, b) {
-  const R = 6371;
-  const dLat = (b.lat - a.lat) * Math.PI / 180;
-  const dLng = (b.lng - a.lng) * Math.PI / 180;
-  const x = Math.sin(dLat/2)**2 +
-            Math.cos(a.lat*Math.PI/180) *
-            Math.cos(b.lat*Math.PI/180) *
-            Math.sin(dLng/2)**2;
-  return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
-}
-
-function renderRating(r) {
-  return `${r} ⭐`;
-}
-
-/* ================= SIDEBAR ================= */
-function updateCafeList() {
-  const list = document.getElementById("cafeList");
-  list.innerHTML = "";
-
-  let sorted = [...cafes];
-
-  if (userLatLng) {
-    sorted.forEach(c => c.dist = distanceKm(userLatLng, c));
-    sorted.sort((a,b) => a.dist - b.dist);
-  }
-
-  cafeMarkers.forEach(m => map.removeLayer(m));
-  cafeMarkers = [];
-
-  sorted.forEach((c, i) => {
-    const card = document.createElement("div");
-    card.className = "cafe-card" + (i === 0 && userLatLng ? " nearest" : "");
-    card.innerHTML = `
-      <div class="cafe-name">${c.name}</div>
-      <div class="cafe-distance">
-        <span>📏 ${c.dist ? c.dist.toFixed(2) : "--"} km</span>
-        <span>${renderRating(c.rating)}</span>
+      <!-- Nút Home -->
+      <div class="controls">
+        <button onclick="window.location.href='/'">🏠 ホーム</button>
       </div>
-    `;
-    card.onclick = () => drawRoute(c);
-    list.appendChild(card);
 
-    const icon = (i === 0 && userLatLng) ? redIcon : greenIcon;
-    const marker = L.marker([c.lat, c.lng], { icon }).addTo(map);
-    marker.on("click", () => drawRoute(c));
-    cafeMarkers.push(marker);
-  });
-}
+      <div class="controls">
+        <button id="btnUserLocation">📍 自分の位置を選択</button>
+      </div>
 
-/* ================= MODE ================= */
-document.querySelectorAll(".mode-btn").forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    currentMode = btn.dataset.mode;
-    if (selectedCafe) drawRoute(selectedCafe);
-  };
-});
+      <div class="travel-modes">
+        <button class="mode-btn active" data-mode="driving">🚗</button>
+        <button class="mode-btn" data-mode="walking">🚶</button>
+        <button class="mode-btn" data-mode="cycling">🚴</button>
+      </div>
 
-/* ================= ROUTING ================= */
-function drawRoute(cafe) {
-  if (!userLatLng) return;
-  selectedCafe = cafe;
+      <div class="section-title">Danh sách quán cafe</div>
+      <div id="cafeList"></div>
+    </div>
 
-  const url =
-    `https://router.project-osrm.org/route/v1/${currentMode}/` +
-    `${userLatLng.lng},${userLatLng.lat};${cafe.lng},${cafe.lat}` +
-    `?overview=full&geometries=geojson`;
+    <div id="map"></div>
 
-  fetch(url)
-    .then(r => r.json())
-    .then(data => {
-      if (routeLayer) map.removeLayer(routeLayer);
-      routeLayer = L.geoJSON(data.routes[0].geometry, {
-        style: { color: "#2563eb", weight: 5 }
-      }).addTo(map);
-      map.fitBounds(routeLayer.getBounds(), { padding: [40,40] });
+    <!-- Cafe Detail Popup -->
+    <div id="cafeDetailPopup" class="cafe-detail-popup">
+      <button class="close-popup-btn" onclick="closeDetailPopup()">×</button>
+      <img id="popupImage" src="" alt="Cafe Image" onerror="this.src='/images/placeholder.png'">
+      <div class="popup-content">
+        <h3 id="popupName">Cafe Name</h3>
+        <div class="popup-info-row"><i class="fas fa-map-marker-alt" style="color:#c0392b;"></i> <span id="popupAddress">Address</span></div>
+        <div class="popup-info-row"><i class="fas fa-star" style="color:#f1c40f;"></i> <span id="popupRating">4.5 / 5</span></div>
+        <div class="popup-info-row"><i class="fas fa-info-circle" style="color:#3498db;"></i> <span id="popupStatus">Opening</span></div>
+        <p id="popupDesc" style="font-size:13px; color:#666; margin:8px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"></p>
+        
+        <a id="popupLink" href="#" class="popup-btn">詳細を見る</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ================= MAP & ICON =================
+    var map = L.map("map").setView([21.0285, 105.8542], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+
+    const redIcon = new L.Icon({
+      iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+      iconSize: [25,41],
+      iconAnchor: [12,41]
     });
-}
-</script>
+
+    const greenIcon = new L.Icon({
+      iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+      iconSize: [25,41],
+      iconAnchor: [12,41]
+    });
+
+    const blueIcon = new L.Icon({
+      iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+      shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+      iconSize: [25,41],
+      iconAnchor: [12,41]
+    });
+
+    // ================= DATA =================
+    var cafes = [
+      { name:"The Note Coffee (Hoàn Kiếm)", lat:21.0289, lng:105.8533, rating:4.5 },
+      { name:"Highlands Coffee Kim Mã", lat:21.0338, lng:105.8145, rating:4.0 },
+      { name:"Tranquil Books & Coffee", lat:21.0167, lng:105.8280, rating:4.8 },
+      { name:"The Coffee House Bà Triệu", lat:21.0135, lng:105.8478, rating:4.2 },
+      { name:"Cộng Cà Phê Cầu Giấy", lat:21.0369, lng:105.7920, rating:4.1 },
+      { name:"Starbucks Nguyễn Trãi", lat:20.9978, lng:105.8116, rating:4.3 },
+      { name:"Maison de Tet Decor (Tây Hồ)", lat:21.0732, lng:105.8184, rating:4.6 },
+      { name:"Coffee Bike Long Biên", lat:21.0462, lng:105.8851, rating:4.0 },
+      { name:"Gong Cha Hà Đông", lat:20.9719, lng:105.7765, rating:3.9 },
+      { name:"The Coffee House Mỹ Đình", lat:21.0281, lng:105.7706, rating:4.4 }
+    ];
+
+    let sortedCafes = [];
+    let cafeMarkers = [];
+    let userLatLng = null;
+    let userMarker = null;
+    let selectingUser = false;
+    let routeLayer = null;
+    let currentMode = "driving";
+    let selectedCafe = null;
+
+    // ================= USER LOCATION =================
+    document.getElementById("btnUserLocation").onclick = () => {
+      selectingUser = true;
+      alert("地図をクリックして自分の位置を選んでください");
+    };
+
+    map.on("click", async e => {
+      if (!selectingUser) return;
+      selectingUser = false;
+      userLatLng = e.latlng;
+
+      if (userMarker) map.removeLayer(userMarker);
+      userMarker = L.marker(userLatLng, { icon: blueIcon }).addTo(map);
+      userMarker.bindPopup("ここです").openPopup(); // Ensure popup is added and opened
+
+      await updateUserLocation(userLatLng.lat, userLatLng.lng);
+      updateCafeList();
+    });
+
+    // Fetch cafes from API
+    async function fetchCafes() {
+      const response = await fetch('/api/cafes/list');
+      cafes = await response.json();
+      updateCafeList();
+
+      // Kiểm tra URL xem có tham số 'id' không để highlight quán cafe
+      const urlParams = new URLSearchParams(window.location.search);
+      const cafeId = urlParams.get('id');
+      if (cafeId) {
+        const index = sortedCafes.findIndex(c => c.id == cafeId);
+        if (index !== -1) {
+          selectedCafe = sortedCafes[index];
+          highlightCafe(index);
+          map.setView([sortedCafes[index].lat, sortedCafes[index].lng], 16);
+          drawRoute(selectedCafe);
+        }
+      }
+    }
+
+    // Fetch user location from API
+    async function fetchUserLocation() {
+      const response = await fetch('/user/location/current');
+      const data = await response.json();
+      if (data.lat && data.lng) {
+        userLatLng = L.latLng(data.lat, data.lng);
+        userMarker = L.marker(userLatLng, { icon: blueIcon }).addTo(map);
+        map.setView(userLatLng, 13);
+        updateCafeList();
+      }
+    }
+
+    // Update user location to API
+    async function updateUserLocation(lat, lng) {
+      try {
+        console.log('Sending user location update:', { lat, lng }); // Log data being sent
+        const response = await fetch('/user/location/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat, lng })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text(); // Log server response
+          console.error('Failed to update user location:', response.status, errorText);
+          alert('位置を更新できません。もう一度お試しください。');
+        } else {
+          console.log('User location updated successfully');
+        }
+      } catch (error) {
+        console.error('Error updating user location:', error);
+        alert('位置の更新中にエラーが発生しました。もう一度お試しください。');
+      }
+    }
+
+    function distanceKm(a, b) {
+      const R = 6371;
+      const dLat = (b.lat - a.lat) * Math.PI / 180;
+      const dLng = (b.lng - a.lng) * Math.PI / 180;
+      const x = Math.sin(dLat/2)**2 +
+                Math.cos(a.lat*Math.PI/180) *
+                Math.cos(b.lat*Math.PI/180) *
+                Math.sin(dLng/2)**2;
+      return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+    }
+
+    function renderRating(r) {
+      return `${r} ⭐`;
+    }
+
+    function highlightCafe(index) {
+      // 1. Reset tất cả marker về màu xanh
+      cafeMarkers.forEach(m => {
+        m.setIcon(greenIcon);
+        m.setZIndexOffset(0);
+      });
+
+      // 2. Đổi marker được chọn sang màu đỏ
+      if (cafeMarkers[index]) {
+        cafeMarkers[index].setIcon(redIcon);
+        cafeMarkers[index].setZIndexOffset(1000);
+      }
+
+      // 3. Reset style của tất cả các thẻ
+      document.querySelectorAll(".cafe-card").forEach(c => {
+        c.classList.remove("nearest");
+        c.style.borderColor = "#e5e7eb";
+        c.style.backgroundColor = "#f9fafb";
+      });
+
+      // 4. Highlight thẻ được chọn và cuộn lên đầu
+      const card = document.getElementById(`cafe-card-${index}`);
+      if (card) {
+        card.style.borderColor = "red";
+        card.style.backgroundColor = "#fff7ed";
+        card.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      // 5. Show detail popup
+      if (sortedCafes[index]) {
+        showCafeDetailPopup(sortedCafes[index]);
+      }
+    }
+
+    function showCafeDetailPopup(cafe) {
+      const popup = document.getElementById('cafeDetailPopup');
+      document.getElementById('popupName').textContent = cafe.name;
+      document.getElementById('popupAddress').textContent = cafe.address || '住所不明';
+      document.getElementById('popupRating').textContent = (cafe.rating || 0) + ' / 5';
+      
+      const statusText = cafe.status === 'opening' ? '営業中' : (cafe.status === 'closed' ? '閉店' : '不明');
+      document.getElementById('popupStatus').textContent = statusText;
+      document.getElementById('popupDesc').textContent = cafe.description || '説明はありません。';
+      
+      let imgUrl = '/images/placeholder.png';
+      if (cafe.image) {
+        if (cafe.image.startsWith('http') || cafe.image.startsWith('https')) {
+          imgUrl = cafe.image;
+        } else {
+          imgUrl = '/images/' + cafe.image;
+        }
+      }
+      document.getElementById('popupImage').src = imgUrl;
+      
+      document.getElementById('popupLink').href = '/cafes/' + (cafe.id || 0);
+      
+      popup.style.display = 'block';
+    }
+
+    function closeDetailPopup() {
+      document.getElementById('cafeDetailPopup').style.display = 'none';
+    }
+
+    function updateCafeList() {
+      const list = document.getElementById("cafeList");
+      list.innerHTML = "";
+
+      sortedCafes = [...cafes];
+
+      if (userLatLng) {
+        sortedCafes.forEach(c => c.dist = distanceKm(userLatLng, c));
+        sortedCafes.sort((a,b) => a.dist - b.dist);
+      }
+
+      cafeMarkers.forEach(m => map.removeLayer(m));
+      cafeMarkers = [];
+
+      sortedCafes.forEach((c, i) => {
+        const card = document.createElement("div");
+        card.id = `cafe-card-${i}`;
+        card.className = "cafe-card" + (i === 0 && userLatLng ? " nearest" : "");
+        card.innerHTML = `
+          <div class="cafe-name">${c.name}</div>
+          <div class="cafe-distance">
+            <span>📏 ${c.dist ? c.dist.toFixed(2) : "--"} km</span>
+            <span>${renderRating(c.rating)}</span>
+          </div>
+        `;
+        
+        const handleClick = () => {
+            highlightCafe(i);
+            drawRoute(c);
+        };
+
+        card.onclick = handleClick;
+        list.appendChild(card);
+
+        const icon = (i === 0 && userLatLng) ? redIcon : greenIcon;
+        const marker = L.marker([c.lat, c.lng], { icon }).addTo(map);
+        if (i === 0 && userLatLng) {
+          marker.bindPopup("一番近い").openPopup();
+        }
+        marker.on("click", handleClick);
+        cafeMarkers.push(marker);
+      });
+
+      if (selectedCafe) {
+        const idx = sortedCafes.findIndex(c => c.id === selectedCafe.id);
+        if (idx !== -1) {
+          highlightCafe(idx);
+          drawRoute(selectedCafe);
+        }
+      }
+    }
+
+    document.querySelectorAll(".mode-btn").forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentMode = btn.dataset.mode;
+        if (selectedCafe) drawRoute(selectedCafe);
+      };
+    });
+
+    function drawRoute(cafe) {
+      if (!userLatLng) return;
+      selectedCafe = cafe;
+
+      const url =
+        `https://router.project-osrm.org/route/v1/${currentMode}/` +
+        `${userLatLng.lng},${userLatLng.lat};${cafe.lng},${cafe.lat}` +
+        `?overview=full&geometries=geojson`;
+
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (routeLayer) map.removeLayer(routeLayer);
+          routeLayer = L.geoJSON(data.routes[0].geometry, {
+            style: { color: "#2563eb", weight: 5 }
+          }).addTo(map);
+          map.fitBounds(routeLayer.getBounds(), { padding: [40,40] });
+        });
+    }
+
+    // Initialize
+    fetchCafes();
+    fetchUserLocation();
+  </script>
 
 </body>
 </html>

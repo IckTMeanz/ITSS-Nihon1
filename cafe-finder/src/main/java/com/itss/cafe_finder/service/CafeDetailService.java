@@ -4,6 +4,7 @@ import com.itss.cafe_finder.model.Cafe;
 import com.itss.cafe_finder.model.Dish;
 import com.itss.cafe_finder.model.Review;
 import com.itss.cafe_finder.model.User;
+import com.itss.cafe_finder.model.enums.ReviewStatusType;
 import com.itss.cafe_finder.repository.CafeRepository;
 import com.itss.cafe_finder.repository.DishRepository;
 import com.itss.cafe_finder.repository.ReviewRepository;
@@ -11,8 +12,13 @@ import dto.CafeDTO;
 import dto.DishDTO;
 import dto.ReviewDTO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -58,7 +64,7 @@ public class CafeDetailService {
     }
 
     public List<ReviewDTO> getReviews(Long cafeId) {
-        List<Review> reviews = reviewRepository.findByCafeId(cafeId);
+        List<Review> reviews = reviewRepository.findByCafeIdAndStatus(cafeId, ReviewStatusType.published);
         return reviews.stream().map(item -> {
             ReviewDTO dto = new ReviewDTO();
             dto.setId(item.getId());
@@ -70,6 +76,29 @@ public class CafeDetailService {
             dto.setCreatedAt(item.getCreatedAt());
             return dto;
         }).toList();
+    }
+
+    public Page<ReviewDTO> getReviews(Long cafeId, Integer star, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Review> reviews;
+        
+        if (star != null) {
+            reviews = reviewRepository.findByCafeIdAndStatusAndStar(cafeId, ReviewStatusType.published, star, pageable);
+        } else {
+            reviews = reviewRepository.findByCafeIdAndStatus(cafeId, ReviewStatusType.published, pageable);
+        }
+        
+        return reviews.map(item -> {
+            ReviewDTO dto = new ReviewDTO();
+            dto.setId(item.getId());
+            if (item.getUser() != null) {
+                dto.setUserName(item.getUser().getName());
+            }
+            dto.setStar(item.getStar());
+            dto.setContent(item.getContent());
+            dto.setCreatedAt(item.getCreatedAt());
+            return dto;
+        });
     }
     
     public void saveReview(Long cafeId, User user, Integer star, String content) {
@@ -84,5 +113,6 @@ public class CafeDetailService {
         review.setCreatedAt(ZonedDateTime.now());
         
         reviewRepository.save(review);
-    }
+    }    
+    
 }

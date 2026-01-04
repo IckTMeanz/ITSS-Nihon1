@@ -36,9 +36,11 @@
             background: white;
             border-radius: 16px;
             padding: 32px;
-            max-width: 500px;
+            max-width: 800px;
             width: 90%;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
         }
 
         .popup-header {
@@ -240,7 +242,7 @@
 
                 <li class="dropdown" sec:authorize="isAuthenticated()">
                     <a href="#" class="dropdown-toggle">
-                        <span sec:authentication="name">User</span> ▾
+                        <span sec:authentication="principal.fullName">User</span> ▾
                     </a>
                     <ul class="dropdown-menu">
                         <li><a th:href="@{/update}">👤 アカウント</a></li> 
@@ -296,6 +298,10 @@
             <div id="nearbyShops" class="shop-grid"></div>
             <div id="paginationContainer" class="pagination-container"></div>
         </section>
+
+        <section class="current-location-section">
+            <h2>📌 あなたの現在地</h2>
+        </section>
     </main>
 
     <footer class="footer">
@@ -325,7 +331,19 @@
                     />
                 </div>
                 <div class="suggestions-dropdown" id="suggestionsDropdown"></div>
+                
+                <!-- Added current location message -->
+                <p id="currentLocationMessage" style="margin-top: 10px; color: #666; font-size: 14px;">現在地: 場所が選択されていません</p>
             </div>
+
+            <div style="margin-bottom: 10px;">
+                <button type="button" id="btnSelectOnMap" class="btn-popup" style="background: #2563eb; color: white; padding: 10px; font-size: 14px; width: auto; flex: none;">
+                    📍 地図で位置を選択
+                </button>
+            </div>
+
+            <!-- Map container for visual selection -->
+            <div id="popupMap" style="height: 400px; width: 100%; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd;"></div>
 
             <div class="button-container">
                 <button class="btn-popup btn-popup-cancel" onclick="closeLocationPopup()">キャンセル</button>
@@ -340,6 +358,17 @@
         let selectedLocation = null;
         let currentSuggestions = [];
         let highlightedIndex = -1;
+        let popupMap = null;
+        let popupMarker = null;
+        let isSelectingOnMap = false;
+
+        const blueIcon = new L.Icon({
+            iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+            shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+            iconSize: [25,41],
+            iconAnchor: [12,41],
+            popupAnchor: [1, -34]
+        });
 
         const locationInput = document.getElementById('locationInput');
         const suggestionsDropdown = document.getElementById('suggestionsDropdown');
@@ -362,7 +391,10 @@
 
         function showLocationPopup() {
             locationOverlay.classList.add('active');
-            setTimeout(() => locationInput.focus(), 100);
+            setTimeout(() => {
+                initPopupMap();
+                locationInput.focus();
+            }, 100);
         }
 
         function closeLocationPopup() {
@@ -372,6 +404,84 @@
             confirmBtn.disabled = true;
             hideSuggestions();
         }
+
+        function initPopupMap() {
+            if (!popupMap) {
+                // Default center (Hanoi)
+                let center = [21.0285, 105.8542];
+                let zoom = 13;
+
+                if (window.currentUserLocation) {
+                    center = [window.currentUserLocation.lat, window.currentUserLocation.lng];
+                    zoom = 15;
+                }
+
+                popupMap = L.map('popupMap').setView(center, zoom);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(popupMap);
+
+                if (window.currentUserLocation) {
+                    popupMarker = L.marker(center, {icon: blueIcon}).addTo(popupMap);
+                }
+
+                popupMap.on('click', async (e) => {
+                    if (!isSelectingOnMap) return;
+                    
+                    const { lat, lng } = e.latlng;
+                    updatePopupMarker(lat, lng);
+                    
+                    // Reverse geocode
+                    try {
+                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ja`);
+                        const data = await response.json();
+                        const displayName = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                        
+                        selectedLocation = {
+                            lat: lat,
+                            lng: lng,
+                            name: displayName,
+                            address: displayName
+                        };
+                        locationInput.value = displayName;
+                        confirmBtn.disabled = false;
+                    } catch (error) {
+                        console.error("Reverse geocode failed", error);
+                    }
+                    
+                    isSelectingOnMap = false;
+                    document.getElementById('popupMap').style.cursor = '';
+                });
+            } else {
+                popupMap.invalidateSize();
+                if (window.currentUserLocation) {
+                    const lat = window.currentUserLocation.lat;
+                    const lng = window.currentUserLocation.lng;
+                    if (popupMarker) {
+                        popupMarker.setLatLng([lat, lng]);
+                    } else {
+                        popupMarker = L.marker([lat, lng], {icon: blueIcon}).addTo(popupMap);
+                    }
+                    popupMap.setView([lat, lng], 15);
+                }
+            }
+        }
+
+        function updatePopupMarker(lat, lng) {
+            if (popupMarker) {
+                popupMarker.setLatLng([lat, lng]);
+                popupMarker.setIcon(blueIcon);
+            } else {
+                popupMarker = L.marker([lat, lng], {icon: blueIcon}).addTo(popupMap);
+            }
+            popupMap.setView([lat, lng], 15);
+        }
+
+        document.getElementById('btnSelectOnMap').addEventListener('click', () => {
+            isSelectingOnMap = true;
+            document.getElementById('popupMap').style.cursor = 'crosshair';
+            alert("地図をクリックして位置を選択してください");
+        });
 
         // Event listener cho input location
         locationInput.addEventListener('input', (e) => {
@@ -511,6 +621,7 @@
             selectedLocation = currentSuggestions[index];
             locationInput.value = selectedLocation.name;
             confirmBtn.disabled = false;
+            updatePopupMarker(selectedLocation.lat, selectedLocation.lng);
             hideSuggestions();
         }
 
@@ -558,6 +669,57 @@
                 console.error(err);
                 alert("❌ Không thể lưu vị trí");
             });
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                const response = await fetch('/user/location/current', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (!response.ok) throw new Error('Failed to fetch location');
+
+                const data = await response.json();
+                const currentLocationMessage = document.getElementById('currentLocationMessage');
+
+                if (data.lat && data.lng) {
+                    window.currentUserLocation = { lat: data.lat, lng: data.lng };
+
+                    // Update map immediately if initialized
+                    if (popupMap) {
+                        if (popupMarker) {
+                            popupMarker.setLatLng([data.lat, data.lng]);
+                        } else {
+                            popupMarker = L.marker([data.lat, data.lng], {icon: blueIcon}).addTo(popupMap);
+                        }
+                        popupMap.setView([data.lat, data.lng], 15);
+                    }
+
+                    const locationName = await fetchLocationName(data.lat, data.lng);
+                    currentLocationMessage.textContent = `現在地: ${locationName}`;
+                } else {
+                    currentLocationMessage.textContent = "現在地: 場所が選択されていません";
+                }
+            } catch (error) {
+                console.error('Error fetching user location:', error);
+            }
+        });
+
+        async function fetchLocationName(lat, lng) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ja`
+                );
+                if (!response.ok) throw new Error('Failed to fetch location name');
+
+                const data = await response.json();
+                return data.display_name || '不明な場所';
+            } catch (error) {
+                console.error('Error fetching location name:', error);
+                return '不明な場所';
+            }
         }
     </script>
 </body>
